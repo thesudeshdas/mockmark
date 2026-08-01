@@ -2,7 +2,6 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createServer } from "../src/server.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -10,15 +9,10 @@ const assetsDir = join(root, "public", "mockmark");
 const args = process.argv.slice(2);
 const command = args[0] || "help";
 
-function flag(name, fallback) {
-  const idx = args.indexOf(`--${name}`);
-  if (idx >= 0) return args[idx + 1] ?? true;
-  return fallback;
+function usage() {
+  console.log(`mockmark\n\nBackendless mock comments. No hosted service. No database. No tracking.\n\nCommands:\n  mockmark init [mock-dir]          Copy client assets and inject HTML files\n  mockmark inject [mock-dir]        Inject client tags only\n\nPreview with any static server, for example:\n  python3 -m http.server 4317 -d docs/mockups\n\nHTML can also opt in manually:\n  <link rel="stylesheet" href="/mockmark/client.css">\n  <script type="module" src="/mockmark/client.js"></script>`);
 }
 function positional(index, fallback) { return args[index] ?? fallback; }
-function usage() {
-  console.log(`mockmark\n\nCommands:\n  mockmark init [mock-dir]          Copy client assets and inject HTML files\n  mockmark inject [mock-dir]        Inject client tags only\n  mockmark serve [mock-dir]         Serve mocks + annotation API\n\nOptions:\n  --port 4317                       Server port\n  --data .mockmark/data.json        Annotation JSON store\n  --base /                          URL base when serving\n\nHTML can also opt in manually:\n  <link rel="stylesheet" href="/mockmark/client.css">\n  <script type="module" src="/mockmark/client.js"></script>`);
-}
 function walkHtml(dir) {
   const out=[];
   if (!existsSync(dir)) return out;
@@ -58,20 +52,13 @@ async function main() {
   if (command === 'init') {
     mkdirSync(mockDir, {recursive:true}); copyAssets(mockDir);
     const changed = walkHtml(mockDir).filter(f => !f.includes('/mockmark/')).map(f => injectFile(f, mockDir)).filter(Boolean).length;
-    console.log(`Mockmark initialized in ${mockDir}; injected ${changed} HTML file(s).`); return;
+    console.log(`Mockmark initialized in ${mockDir}; injected ${changed} HTML file(s).`);
+    console.log(`Serve statically with: python3 -m http.server 4317 -d ${mockDir}`);
+    return;
   }
   if (command === 'inject') {
     const changed = walkHtml(mockDir).filter(f => !f.includes('/mockmark/')).map(f => injectFile(f, mockDir)).filter(Boolean).length;
     console.log(`Injected ${changed} HTML file(s).`); return;
-  }
-  if (command === 'serve') {
-    copyAssets(mockDir);
-    const port = Number(flag('port', process.env.PORT || 4317));
-    const dataFile = resolve(String(flag('data', '.mockmark/data.json')));
-    const base = String(flag('base', '/'));
-    const server = createServer({ mockDir, dataFile, base });
-    server.listen(port, () => console.log(`Mockmark serving ${mockDir} at http://localhost:${port}${base}`));
-    return;
   }
   console.error(`Unknown command: ${command}`); usage(); process.exit(1);
 }

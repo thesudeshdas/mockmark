@@ -1,21 +1,19 @@
 {
   "name": "mockmark",
-  "version": "0.1.0",
-  "description": "Drop-in comments and annotations for static HTML mocks.",
+  "version": "0.2.0",
+  "description": "Backendless, private comments and annotations for static HTML mocks.",
   "type": "module",
   "bin": { "mockmark": "./bin/mockmark.js" },
-  "main": "./src/server.js",
   "exports": {
-    ".": "./src/server.js",
     "./client": "./public/mockmark/client.js",
     "./client.css": "./public/mockmark/client.css"
   },
   "files": ["bin", "src", "public", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "check": "node --check bin/mockmark.js && node --check src/server.js && node --check src/store.js"
+    "check": "node --check bin/mockmark.js && node --check src/rules.js"
   },
-  "keywords": ["mockups", "annotations", "comments", "design-review", "static-site"],
+  "keywords": ["mockups", "annotations", "comments", "design-review", "static-site", "privacy"],
   "author": "Sudesh Das",
   "license": "MIT",
   "engines": { "node": ">=18" }

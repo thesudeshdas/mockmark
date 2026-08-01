@@ -1,6 +1,19 @@
 # Mockmark
 
-Drop-in comments and annotations for static HTML mocks. It gives any repo a Figma-style review layer: numbered pins, drag-to-select regions, threaded replies, reactions, resolve/delete, and a tiny self-hosted API.
+Backendless, private comments and annotations for static HTML mocks.
+
+Mockmark adds a Figma-style review layer to HTML mockups: numbered pins, drag-to-select regions, threaded replies, reactions, resolve/delete, and an all-comments panel.
+
+## Privacy model
+
+Mockmark does **not** include a backend, hosted service, telemetry, database, or network sync.
+
+- Comments stay in the reviewer's browser `localStorage`.
+- Nothing is sent to Mockmark or to the project owner.
+- Sharing is explicit: reviewers export a JSON file and send/commit it wherever the team chooses.
+- Import merges another exported JSON file into the current browser.
+
+That keeps ownership with the installing repository/team, not Mockmark.
 
 ## Install
 
@@ -12,7 +25,7 @@ Or run without installing:
 
 ```bash
 npx mockmark init docs/mockups
-npx mockmark serve docs/mockups --port 4317
+python3 -m http.server 4317 -d docs/mockups
 ```
 
 Open `http://localhost:4317` and press **C** to comment.
@@ -25,9 +38,6 @@ npx mockmark init docs/mockups
 
 # Later, only inject new HTML files.
 npx mockmark inject docs/mockups
-
-# Serve mocks with annotation persistence in .mockmark/data.json.
-npx mockmark serve docs/mockups --data .mockmark/data.json --port 4317
 ```
 
 Manual opt-in for one page:
@@ -44,32 +54,24 @@ Manual opt-in for one page:
 - Drag: region comment
 - **L**: all comments
 - **H**: hide/show markers
+- Export/Import buttons: move comments by explicit JSON file handoff
 
-Author names are stored in browser `localStorage`. Comments are stored in the JSON file passed to `mockmark serve`.
+## Data portability
 
-## Deploy
+Exported files use this shape:
 
-Mockmark has no SaaS dependency. Run the Node server wherever your mock previews are hosted:
-
-```bash
-mockmark serve ./public/mocks --port ${PORT:-4317} --data /data/mockmark.json
+```json
+{
+  "version": 1,
+  "exportedAt": 1785560000000,
+  "threads": [],
+  "messages": [],
+  "reactions": []
+}
 ```
 
-The browser client calls `/api/mockmark/*` on the same origin by default. Override it if needed:
-
-```html
-<meta name="mockmark-api-base" content="https://review.example.com/api/mockmark">
-```
-
-## API
-
-- `GET /api/mockmark/threads?mockPath=...`
-- `POST /api/mockmark/threads`
-- `POST /api/mockmark/messages`
-- `POST /api/mockmark/reactions`
-- `POST /api/mockmark/resolve`
-- `POST /api/mockmark/delete`
+Teams can keep those files private, attach them to issues, or commit them to their own repo. Mockmark does not prescribe or host the workflow.
 
 ## Why
 
-This started as a repo-local mock annotation tool and was extracted into a standalone open-source project so static mockups in any repository can collect review comments without adopting a design platform.
+This started as a repo-local mock annotation tool and was extracted into a standalone open-source project so static mockups in any repository can collect review comments without adopting a design platform or sending review data to a third party.
