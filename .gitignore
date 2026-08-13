@@ -6,3 +6,5 @@ coverage/
 dist-web/
 
 .env.local
+.vercel
+.env*
