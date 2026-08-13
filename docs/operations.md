@@ -35,7 +35,7 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 2. Owner generates CLI installation token.
 3. Run dashboard-generated install commands inside target repository.
 4. Run `npx mockmark login TOKEN` and `npx mockmark status`.
-5. Serve mock directory; create review token and open one mock with token query parameter.
+5. Authorize the deployed mock origin, assign a project commenter, then sign in from the mock.
 6. Create, reply, react, resolve, and confirm CLI receives feedback.
 7. Confirm a second repository without `.mockmark.json` remains unchanged.
 
@@ -45,7 +45,7 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 - Remove member access at organization membership layer.
 - Archive project to reject all token access.
 - Inspect `auditEvents` for token, thread, member, and project actions.
-- Review and installation tokens have separate capabilities. Review tokens cannot power the CLI; installation tokens cannot write annotations.
+- Installation tokens are private, project-scoped, and read-only. Browser review requires a signed-in project member.
 - Public reads and writes are transactionally rate-limited per token.
 - Convex backups and retention policy must be configured before production clients.
 

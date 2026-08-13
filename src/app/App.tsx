@@ -486,9 +486,7 @@ function Project({
   const createToken = useAction(api.tokens.create);
   const revokeToken = useMutation(api.tokens.revoke);
   const deleteThread = useMutation(api.publicApi.deleteThreadForDashboard);
-  const [issued, setIssued] = useState<{ kind: string; token: string } | null>(
-    null,
-  );
+  const [issued, setIssued] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
   if (!detail || !feedback) return <Centered>Loading project…</Centered>;
   const canAdmin = detail.role === "admin";
@@ -526,43 +524,27 @@ function Project({
             Export feedback
           </button>
           {canAdmin ? (
-            <>
-              <button
-                onClick={async () => {
-                  const result = await createToken({
-                    projectId,
-                    kind: "review",
-                    label: "Review link",
-                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
-                  });
-                  setIssued({ kind: "Review", token: result.token });
-                }}
-              >
-                Create review token
-              </button>
-              <button
-                className="primary"
-                onClick={async () => {
-                  const result = await createToken({
-                    projectId,
-                    kind: "installation",
-                    label: "CLI installation",
-                  });
-                  setIssued({ kind: "Installation", token: result.token });
-                }}
-              >
-                Create CLI token
-              </button>
-            </>
+            <button
+              className="primary"
+              onClick={async () => {
+                const result = await createToken({
+                  projectId,
+                  label: "CLI installation",
+                });
+                setIssued(result.token);
+              }}
+            >
+              Create CLI token
+            </button>
           ) : null}
         </div>
       </div>
       {issued ? (
         <Notice tone="success">
-          <b>{issued.kind} token—copy now; it will not be shown again.</b>
-          <code>{issued.token}</code>
+          <b>CLI token—copy now; it will not be shown again.</b>
+          <code>{issued}</code>
           <button
-            onClick={() => void navigator.clipboard.writeText(issued.token)}
+            onClick={() => void navigator.clipboard.writeText(issued)}
           >
             Copy
           </button>
@@ -605,7 +587,7 @@ function Project({
               <span>
                 <b>{token.label}</b>
                 <small>
-                  {token.kind} · {token.tokenPrefix}…
+                  CLI · {token.tokenPrefix}…
                   {token.revokedAt ? " · revoked" : ""}
                 </small>
               </span>

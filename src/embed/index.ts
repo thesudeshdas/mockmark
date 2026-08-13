@@ -39,7 +39,7 @@ declare global {
 }
 
 const readRef = makeFunctionReference<"action", any, Feedback>(
-  "publicApi:readReview",
+  "publicApi:readMock",
 );
 const createRef = makeFunctionReference<"action", any, string>(
   "publicApi:createThread",
@@ -68,8 +68,6 @@ class MockmarkEmbed {
   private listOpen = false;
   private draft: Region | null = null;
   private dragStart: { pageX: number; pageY: number } | null = null;
-  private authorName = localStorage.getItem("mockmark.authorName") ?? "";
-  private authorEmail = localStorage.getItem("mockmark.authorEmail") ?? "";
   private timer?: number;
 
   constructor(config: Config) {
@@ -80,26 +78,15 @@ class MockmarkEmbed {
       "position:absolute;inset:0 auto auto 0;width:100%;z-index:2147483000;pointer-events:none;";
     this.root = this.host.attachShadow({ mode: "open" });
     document.body.append(this.host);
-    this.captureToken();
+    this.captureSession();
     this.bindAuthorization();
     this.bindDocument();
     this.render();
     if (this.token) void this.refresh();
   }
 
-  private captureToken() {
-    const url = new URL(location.href);
-    const queryToken = url.searchParams.get("mockmark_token");
-    if (queryToken) {
-      sessionStorage.setItem(
-        `mockmark.token.${this.config.projectKey}`,
-        queryToken,
-      );
-      url.searchParams.delete("mockmark_token");
-      history.replaceState(history.state, "", url);
-    }
+  private captureSession() {
     this.token =
-      queryToken ??
       sessionStorage.getItem(`mockmark.token.${this.config.projectKey}`) ??
       "";
   }
@@ -243,10 +230,10 @@ class MockmarkEmbed {
   }
 
   private accessHtml() {
-    return `<aside class="mm-panel mm-access"><button class="mm-x" data-do="close">×</button><b>Open this mock</b><p>Team member? Sign in. External reviewer? Use a guest review token.</p>${this.config.appUrl ? `<button class="primary" data-do="sign-in">Sign in with Mockmark</button>` : ""}<form data-form="access"><input name="token" type="password" placeholder="Guest token: mmr_…" required><button class="primary">Use guest pass</button></form></aside>`;
+    return `<aside class="mm-panel mm-access"><button class="mm-x" data-do="close">×</button><b>Open this mock</b><p>Sign in with an account assigned to this project.</p>${this.config.appUrl ? `<button class="primary" data-do="sign-in">Sign in with Mockmark</button>` : ""}</aside>`;
   }
   private composerHtml() {
-    return `<aside class="mm-panel"><button class="mm-x" data-do="cancel">×</button><b>New comment</b><p>${this.draft?.width ? "Region selected." : "Point selected."}</p><form data-form="new">${this.identityHtml()}<textarea name="body" placeholder="Leave feedback…" maxlength="4000" required></textarea><button class="primary">Post comment</button></form></aside>`;
+    return `<aside class="mm-panel"><button class="mm-x" data-do="cancel">×</button><b>New comment</b><p>${this.draft?.width ? "Region selected." : "Point selected."}</p><form data-form="new"><textarea name="body" placeholder="Leave feedback…" maxlength="4000" required></textarea><button class="primary">Post comment</button></form></aside>`;
   }
   private listHtml() {
     return `<aside class="mm-panel"><button class="mm-x" data-do="close">×</button><b>All comments</b><p>${this.feedback.threads.length} conversations on this page</p><div class="mm-list">${this.feedback.threads.map((thread, index) => `<button data-thread="${thread._id}"><span>${index + 1}</span><div><b>${escapeHtml(thread.messages[0]?.body ?? "Comment")}</b><small>${escapeHtml(thread.authorName)} · ${thread.messages.length} messages${thread.resolvedAt ? " · resolved" : ""}</small></div></button>`).join("") || `<div class="mm-empty">No comments yet.</div>`}</div></aside>`;
@@ -266,11 +253,7 @@ class MockmarkEmbed {
       )
       .join(
         "",
-      )}</div><div class="mm-actions"><button data-resolve="${thread._id}">${thread.resolvedAt ? "Reopen" : "Resolve"}</button></div>${thread.resolvedAt ? "" : `<form data-form="reply">${this.identityHtml()}<textarea name="body" placeholder="Reply…" maxlength="4000" required></textarea><button class="primary">Send</button></form>`}</aside>`;
-  }
-  private identityHtml() {
-    if (this.token.startsWith("mms_")) return "";
-    return `<div class="mm-identity"><input name="authorName" value="${escapeHtml(this.authorName)}" placeholder="Your name" required minlength="2"><input name="authorEmail" value="${escapeHtml(this.authorEmail)}" placeholder="Email (optional)" type="email"></div>`;
+      )}</div><div class="mm-actions"><button data-resolve="${thread._id}">${thread.resolvedAt ? "Reopen" : "Resolve"}</button></div>${thread.resolvedAt ? "" : `<form data-form="reply"><textarea name="body" placeholder="Reply…" maxlength="4000" required></textarea><button class="primary">Send</button></form>`}</aside>`;
   }
 
   private bindUi() {
@@ -322,19 +305,6 @@ class MockmarkEmbed {
         this.render();
       });
     this.root
-      .querySelector<HTMLFormElement>('[data-form="access"]')
-      ?.addEventListener("submit", (event) => {
-        event.preventDefault();
-        this.token = String(
-          new FormData(event.currentTarget as HTMLFormElement).get("token") ?? "",
-        ).trim();
-        sessionStorage.setItem(
-          `mockmark.token.${this.config.projectKey}`,
-          this.token,
-        );
-        void this.refresh();
-      });
-    this.root
       .querySelector<HTMLFormElement>('[data-form="new"]')
       ?.addEventListener("submit", (event) => void this.create(event));
     this.root
@@ -359,26 +329,10 @@ class MockmarkEmbed {
       );
   }
 
-  private readIdentity(form?: HTMLFormElement) {
-    if (this.token.startsWith("mms_")) return { authorName: "Member" };
-    if (form) {
-      const data = new FormData(form);
-      this.authorName = String(data.get("authorName") ?? "").trim();
-      this.authorEmail = String(data.get("authorEmail") ?? "").trim();
-      localStorage.setItem("mockmark.authorName", this.authorName);
-      localStorage.setItem("mockmark.authorEmail", this.authorEmail);
-    }
-    if (this.authorName.length < 2) throw new Error("Enter your name first.");
-    return {
-      authorName: this.authorName,
-      authorEmail: this.authorEmail || undefined,
-    };
-  }
   private async create(event: SubmitEvent) {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     try {
-      const identity = this.readIdentity(form);
       const data = new FormData(form);
       const anchor = anchorAt(this.draft!, this.pageSize());
       const requestId =
@@ -397,7 +351,6 @@ class MockmarkEmbed {
         viewportWidth: innerWidth,
         viewportHeight: innerHeight,
         requestId,
-        ...identity,
         body: String(data.get("body") ?? ""),
       });
       this.draft = null;
@@ -410,7 +363,6 @@ class MockmarkEmbed {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     try {
-      const identity = this.readIdentity(form);
       const requestId =
         form.dataset.requestId ?? (form.dataset.requestId = crypto.randomUUID());
       await this.client.action(replyRef, {
@@ -418,7 +370,6 @@ class MockmarkEmbed {
         projectKey: this.config.projectKey,
         threadId: this.activeId,
         requestId,
-        ...identity,
         body: String(new FormData(form).get("body") ?? ""),
       });
       await this.refresh();
@@ -435,7 +386,6 @@ class MockmarkEmbed {
         token: this.token,
         projectKey: this.config.projectKey,
         threadId,
-        authorName: this.readIdentity().authorName,
         resolved: !thread.resolvedAt,
       });
       await this.refresh();
@@ -445,13 +395,11 @@ class MockmarkEmbed {
   }
   private async react(messageId: string, emoji: string) {
     try {
-      const identity = this.readIdentity();
       await this.client.action(reactionRef, {
         token: this.token,
         projectKey: this.config.projectKey,
         messageId,
         emoji,
-        ...identity,
       });
       await this.refresh();
     } catch (reason) {

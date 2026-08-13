@@ -6,15 +6,8 @@ describe("host-page mount guard", () => {
     expect(shouldMountMockmark("app.example.com", "", false)).toBe(true);
   });
 
-  test("mounts for local development and authorized review links", () => {
+  test("mounts for local and deployed project pages", () => {
     expect(shouldMountMockmark("localhost", "", false)).toBe(true);
-    expect(
-      shouldMountMockmark(
-        "preview.example.com",
-        "?mockmark_token=mmr_example",
-        false,
-      ),
-    ).toBe(true);
     expect(shouldMountMockmark("preview.example.com", "", true)).toBe(true);
   });
 });

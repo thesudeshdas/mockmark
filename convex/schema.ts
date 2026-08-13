@@ -92,7 +92,7 @@ export default defineSchema({
     .index("by_project_origin", ["projectId", "origin"]),
   accessTokens: defineTable({
     projectId: v.id("projects"),
-    kind: v.union(v.literal("installation"), v.literal("review")),
+    kind: v.literal("installation"),
     label: v.string(),
     tokenHash: v.string(),
     tokenPrefix: v.string(),
@@ -122,17 +122,12 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
   idempotencyKeys: defineTable({
-    tokenId: v.optional(v.id("accessTokens")),
-    previewSessionId: v.optional(v.id("memberPreviewSessions")),
+    previewSessionId: v.id("memberPreviewSessions"),
     operation: v.union(v.literal("thread.create"), v.literal("message.reply")),
     requestId: v.string(),
     resultId: v.string(),
     createdAt: v.number(),
-  }).index("by_token_operation_request", [
-    "tokenId",
-    "operation",
-    "requestId",
-  ]).index("by_preview_operation_request", [
+  }).index("by_preview_operation_request", [
     "previewSessionId",
     "operation",
     "requestId",

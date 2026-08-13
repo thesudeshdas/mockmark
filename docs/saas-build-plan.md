@@ -55,7 +55,7 @@ Package must remain thin. Hosted services own persistence, authorization, realti
 - Email login initially; workspace roles plus explicit per-project `admin`, `commenter`, and `viewer` assignments.
 - Short-lived dashboard sessions and revocable CLI installation tokens.
 - Workspace membership alone reveals no projects. Project invitations may join a workspace while granting only their target project.
-- Signed-in member preview sessions are short-lived and membership-backed; review tokens remain optional external guest passes.
+- Signed-in member preview sessions are short-lived and membership-backed. Browser review has no guest-token path.
 - Project isolation: Codebase A credentials cannot read Codebase B.
 - Session revocation, member removal, and audit trail.
 

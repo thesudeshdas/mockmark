@@ -30,8 +30,7 @@ Credentials are stored under the current user's config directory, outside the re
 ## Review flow
 
 1. A project admin authorizes the deployed mock's exact origin.
-2. Assigned project members open that mock and choose **Sign in with Mockmark**. No guest token is required.
-3. External reviewers use an optional time-limited guest token from a project admin.
+2. Assigned project members open that mock and choose **Sign in with Mockmark**.
 3. Press **C** to pin a point/region, **L** for all conversations, and **H** to hide markers.
 4. Comments, replies, reactions, and resolution state sync to Convex.
 
@@ -87,8 +86,8 @@ See [docs/saas-build-plan.md](docs/saas-build-plan.md) and [docs/operations.md](
 - Workspace membership never grants project access. Every project requires an explicit `admin`, `commenter`, or `viewer` assignment.
 - Signed-in mock access uses short-lived member preview sessions and rechecks workspace plus project membership on every request.
 - Member session handoff is restricted to exact project-authorized origins; localhost is allowed for development.
-- Embedded review and CLI operations require hashed, revocable, project-scoped tokens.
-- Review tokens can annotate but cannot power the CLI; installation tokens can read feedback but cannot annotate.
+- Embedded review requires a signed-in project member. CLI operations require hashed, revocable, project-scoped installation tokens.
+- Installation tokens can read feedback but cannot annotate or open browser mocks.
 - Public token traffic is rate-limited transactionally.
 - No organization credential is committed to client repositories.
 - Browser-delivered code is inspectable. Authorization, persistence, tenancy, and audit logic remain server-side.

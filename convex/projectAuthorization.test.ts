@@ -101,7 +101,7 @@ describe("project authorization", () => {
     );
   });
 
-  test("commenter opens and comments on assigned mock without a review token", async () => {
+  test("commenter opens and comments on assigned mock with account access", async () => {
     const t = convexTest(schema, modules);
     const { ownerId, bossId, workProjectId, personalProjectId } =
       await seedWorkspaceWithPrivateProjects(t);
@@ -141,11 +141,9 @@ describe("project authorization", () => {
       y: 0.3,
       viewportWidth: 1200,
       viewportHeight: 800,
-      authorName: "Spoofed name",
-      authorEmail: "spoofed@example.com",
       body: "Move this section.",
     });
-    const result: any = await t.action(api.publicApi.readReview, {
+    const result: any = await t.action(api.publicApi.readMock, {
       token,
       projectKey: workProject!.projectKey,
     });
@@ -154,7 +152,7 @@ describe("project authorization", () => {
       authorEmail: "boss@example.com",
     });
     await expect(
-      t.action(api.publicApi.readReview, {
+      t.action(api.publicApi.readMock, {
         token,
         projectKey: personalProject!.projectKey,
       }),
@@ -177,7 +175,7 @@ describe("project authorization", () => {
     const { token } = await boss.action(api.previewSessions.create, { projectId: workProjectId });
     const project = await t.run((ctx) => ctx.db.get(workProjectId));
     await expect(
-      t.action(api.publicApi.readReview, { token, projectKey: project!.projectKey }),
+      t.action(api.publicApi.readMock, { token, projectKey: project!.projectKey }),
     ).resolves.toMatchObject({ threads: [] });
     await expect(
       t.action(api.publicApi.createThread, {
@@ -190,7 +188,6 @@ describe("project authorization", () => {
         y: 0.3,
         viewportWidth: 1200,
         viewportHeight: 800,
-        authorName: "Boss",
         body: "Should fail.",
       }),
     ).rejects.toThrow(/invalid or expired/i);
@@ -213,7 +210,7 @@ describe("project authorization", () => {
     await t.withIdentity({ subject: ownerId }).mutation(api.projectAccess.remove, { membershipId });
     const project = await t.run((ctx) => ctx.db.get(workProjectId));
     await expect(
-      t.action(api.publicApi.readReview, { token, projectKey: project!.projectKey }),
+      t.action(api.publicApi.readMock, { token, projectKey: project!.projectKey }),
     ).rejects.toThrow(/invalid or expired/i);
   });
 
@@ -236,8 +233,7 @@ describe("project authorization", () => {
     await expect(
       t.withIdentity({ subject: bossId }).action(api.tokens.create, {
         projectId: workProjectId,
-        kind: "review",
-        label: "Unauthorized guest pass",
+        label: "Unauthorized CLI credential",
       }),
     ).rejects.toThrow(/project not found/i);
   });
@@ -269,7 +265,6 @@ describe("project authorization", () => {
     await expect(
       boss.action(api.tokens.create, {
         projectId: workProjectId,
-        kind: "installation",
         label: "Forbidden CLI",
       }),
     ).rejects.toThrow(/project not found/i);
