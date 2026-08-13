@@ -2,13 +2,13 @@ import { ConvexError, v } from "convex/values";
 import {
   action,
   internalMutation,
-  internalQuery,
   mutation,
   query,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { audit, requireProject } from "./lib/authz";
 import { hashToken } from "./lib/tokens";
+import { consumeRateLimit } from "./lib/rateLimit";
 import {
   ALLOWED_REACTIONS,
   cleanBody,
@@ -71,7 +71,7 @@ export const read = action({
   },
   handler: async (ctx, args): Promise<unknown> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runQuery(internal.publicApi.readWithToken, {
+    return ctx.runMutation(internal.publicApi.readWithToken, {
       ...args,
       tokenHash,
       requiredKind: "installation",
@@ -89,7 +89,7 @@ export const readReview = action({
   },
   handler: async (ctx, args): Promise<unknown> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runQuery(internal.publicApi.readWithToken, {
+    return ctx.runMutation(internal.publicApi.readWithToken, {
       ...args,
       tokenHash,
       requiredKind: "review",
@@ -97,7 +97,7 @@ export const readReview = action({
   },
 });
 
-export const readWithToken = internalQuery({
+export const readWithToken = internalMutation({
   args: {
     token: v.string(),
     tokenHash: v.string(),
@@ -113,6 +113,11 @@ export const readWithToken = internalQuery({
       args.tokenHash,
       args.projectKey,
       args.requiredKind,
+    );
+    await consumeRateLimit(
+      ctx,
+      `${access.token._id}:read`,
+      240,
     );
     const page = args.pageKey
       ? await ctx.db
@@ -199,6 +204,7 @@ export const createThreadWithToken = internalMutation({
       args.projectKey,
       "review",
     );
+    await consumeRateLimit(ctx, `${access.token._id}:create`, 30);
     validateRegion(args);
     const authorName = cleanText(args.authorName, "Author name", 2, 80);
     const authorEmail = cleanEmail(args.authorEmail);
@@ -322,6 +328,7 @@ export const replyWithToken = internalMutation({
       args.projectKey,
       "review",
     );
+    await consumeRateLimit(ctx, `${access.token._id}:reply`, 60);
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
       throw new ConvexError("Thread not found.");
@@ -391,6 +398,7 @@ export const setResolvedWithToken = internalMutation({
       args.projectKey,
       "review",
     );
+    await consumeRateLimit(ctx, `${access.token._id}:resolve`, 120);
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
       throw new ConvexError("Thread not found.");
@@ -448,6 +456,7 @@ export const toggleReactionWithToken = internalMutation({
       args.projectKey,
       "review",
     );
+    await consumeRateLimit(ctx, `${access.token._id}:reaction`, 240);
     const message = await ctx.db.get(args.messageId);
     if (
       !message ||

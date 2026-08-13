@@ -65,6 +65,12 @@ export default defineSchema({
   })
     .index("by_token_hash", ["tokenHash"])
     .index("by_project", ["projectId"]),
+  rateLimits: defineTable({
+    key: v.string(),
+    windowStart: v.number(),
+    count: v.number(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
   builds: defineTable({
     projectId: v.id("projects"),
     buildKey: v.string(),

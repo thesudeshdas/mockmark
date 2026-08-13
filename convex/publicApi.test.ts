@@ -37,8 +37,9 @@ async function seed(
       createdBy: userId,
       createdAt: 1,
     });
+    let reviewTokenId;
     if (addToken) {
-      await ctx.db.insert("accessTokens", {
+      reviewTokenId = await ctx.db.insert("accessTokens", {
         projectId,
         kind: "review",
         label: "Review",
@@ -57,7 +58,7 @@ async function seed(
         createdAt: 1,
       });
     }
-    return { organizationId, projectId, projectKey };
+    return { organizationId, projectId, projectKey, reviewTokenId };
   });
 }
 
@@ -180,5 +181,34 @@ describe("public review API", () => {
       projectKey,
     });
     expect(cliResult.project.key).toBe(projectKey);
+  });
+
+  test("rate limits public writes per token", async () => {
+    const t = convexTest(schema, modules);
+    const { projectKey, reviewTokenId } = await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("rateLimits", {
+        key: `${reviewTokenId}:create`,
+        windowStart: Date.now(),
+        count: 30,
+        updatedAt: Date.now(),
+      });
+    });
+
+    await expect(
+      t.action(api.publicApi.createThread, {
+        token: reviewToken,
+        projectKey,
+        pageKey: "localhost/mock.html",
+        path: "/mock.html",
+        title: "Mock",
+        x: 0.1,
+        y: 0.1,
+        viewportWidth: 800,
+        viewportHeight: 600,
+        authorName: "Reviewer",
+        body: "This exceeds the write limit.",
+      }),
+    ).rejects.toThrow(/too many requests/i);
   });
 });
