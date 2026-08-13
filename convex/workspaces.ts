@@ -62,6 +62,45 @@ export const bootstrap = mutation({
   },
 });
 
+export const create = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const { userId } = await requireUser(ctx);
+    const name = cleanText(args.name, "Workspace name", 2, 80);
+    const baseSlug = slugify(name);
+    let slug = baseSlug;
+    for (
+      let suffix = 2;
+      await ctx.db
+        .query("organizations")
+        .withIndex("by_slug", (q) => q.eq("slug", slug))
+        .unique();
+      suffix += 1
+    )
+      slug = `${baseSlug}-${suffix}`;
+    const organizationId = await ctx.db.insert("organizations", {
+      name,
+      slug,
+      createdBy: userId,
+      createdAt: Date.now(),
+    });
+    await ctx.db.insert("memberships", {
+      organizationId,
+      userId,
+      role: "owner",
+      createdAt: Date.now(),
+    });
+    await audit(ctx, {
+      organizationId,
+      actorUserId: userId,
+      action: "organization.created",
+      targetType: "organization",
+      targetId: organizationId,
+    });
+    return organizationId;
+  },
+});
+
 export const mine = query({
   args: {},
   handler: async (ctx) => {
@@ -193,6 +232,34 @@ export const removeMember = mutation({
       throw new ConvexError("Workspace owner cannot be removed.");
     if (target.role === "admin" && actor.role !== "owner")
       throw new ConvexError("Only the owner can remove an admin.");
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_org", (q) => q.eq("organizationId", target.organizationId))
+      .collect();
+    for (const project of projects) {
+      const projectMembership = await ctx.db
+        .query("projectMemberships")
+        .withIndex("by_project_user", (q) =>
+          q.eq("projectId", project._id).eq("userId", target.userId),
+        )
+        .unique();
+      if (projectMembership?.role === "admin") {
+        const otherAdmins = (
+          await ctx.db
+            .query("projectMemberships")
+            .withIndex("by_project", (q) => q.eq("projectId", project._id))
+            .collect()
+        ).filter(
+          (membership) =>
+            membership.role === "admin" && membership._id !== projectMembership._id,
+        );
+        if (!otherAdmins.length)
+          throw new ConvexError(
+            `Transfer admin access for ${project.name} before removing this member.`,
+          );
+      }
+      if (projectMembership) await ctx.db.delete(projectMembership._id);
+    }
     await ctx.db.delete(target._id);
     await audit(ctx, {
       organizationId: target.organizationId,

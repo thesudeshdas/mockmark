@@ -12,6 +12,9 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
 export function App() {
+  const authorizeProject = new URL(location.href).searchParams.get(
+    "mockmark_authorize",
+  );
   return (
     <>
       <AuthLoading>
@@ -21,10 +24,46 @@ export function App() {
         <AuthScreen />
       </Unauthenticated>
       <Authenticated>
-        <Workspace />
+        {authorizeProject ? (
+          <PreviewAuthorization projectKey={authorizeProject} />
+        ) : (
+          <Workspace />
+        )}
       </Authenticated>
     </>
   );
+}
+
+function PreviewAuthorization({ projectKey }: { projectKey: string }) {
+  const createSession = useAction(api.previewSessions.createForProject);
+  const [status, setStatus] = useState("Authorizing mock…");
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    const params = new URL(location.href).searchParams;
+    const returnOrigin = params.get("origin") ?? "";
+    let allowedOrigin = "";
+    try {
+      const parsed = new URL(returnOrigin);
+      if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+      allowedOrigin = parsed.origin;
+    } catch {
+      setStatus("Invalid mock origin.");
+      return;
+    }
+    void createSession({ projectKey, origin: allowedOrigin })
+      .then(({ token, expiresAt }) => {
+        window.opener?.postMessage(
+          { type: "mockmark:authorized", projectKey, token, expiresAt },
+          allowedOrigin,
+        );
+        setStatus("Authorized. You can close this window.");
+        window.setTimeout(() => window.close(), 400);
+      })
+      .catch((reason) => setStatus(errorMessage(reason)));
+  }, [createSession, projectKey]);
+  return <Centered>{status}</Centered>;
 }
 
 function AuthScreen() {
@@ -97,6 +136,7 @@ function AuthScreen() {
 function Workspace() {
   const workspaces = useQuery(api.workspaces.mine);
   const bootstrap = useMutation(api.workspaces.bootstrap);
+  const createWorkspace = useMutation(api.workspaces.create);
   const { signOut } = useAuthActions();
   const [selectedOrg, setSelectedOrg] = useState<Id<"organizations"> | null>(
     null,
@@ -105,22 +145,30 @@ function Workspace() {
     null,
   );
   const acceptInvitation = useMutation(api.workspaces.acceptInvitation);
+  const acceptProjectInvitation = useMutation(api.projectAccess.acceptInvitation);
   const [inviteStatus, setInviteStatus] = useState("");
   const inviteHandled = useRef(false);
   useEffect(() => {
-    const invite = new URL(location.href).searchParams.get("invite");
-    if (!invite || inviteHandled.current) return;
+    const params = new URL(location.href).searchParams;
+    const projectInvite = params.get("project_invite");
+    const invite = params.get("invite");
+    const rawToken = projectInvite ?? invite;
+    if (!rawToken || inviteHandled.current) return;
     inviteHandled.current = true;
-    void sha256(invite)
-      .then((tokenHash) => acceptInvitation({ tokenHash }))
+    void sha256(rawToken)
+      .then(async (tokenHash) => {
+        if (projectInvite) await acceptProjectInvitation({ tokenHash });
+        else await acceptInvitation({ tokenHash });
+      })
       .then(() => {
         const url = new URL(location.href);
         url.searchParams.delete("invite");
+        url.searchParams.delete("project_invite");
         history.replaceState(history.state, "", url);
         setInviteStatus("Invitation accepted.");
       })
       .catch((reason) => setInviteStatus(errorMessage(reason)));
-  }, [acceptInvitation]);
+  }, [acceptInvitation, acceptProjectInvitation]);
   const activeOrg = selectedOrg ?? workspaces?.[0]?.organization?._id ?? null;
   const activeRole = workspaces?.find(
     (item) => item.organization?._id === activeOrg,
@@ -154,6 +202,19 @@ function Workspace() {
             ) : null,
           )}
         </nav>
+        <button
+          className="quiet"
+          onClick={() => {
+            const name = prompt("Workspace name");
+            if (!name) return;
+            void createWorkspace({ name }).then((organizationId) => {
+              setSelectedOrg(organizationId);
+              setSelectedProject(null);
+            });
+          }}
+        >
+          New workspace
+        </button>
         <button className="quiet" onClick={() => void signOut()}>
           Sign out
         </button>
@@ -430,7 +491,7 @@ function Project({
   );
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
   if (!detail || !feedback) return <Centered>Loading project…</Centered>;
-  const canAdmin = detail.role === "owner" || detail.role === "admin";
+  const canAdmin = detail.role === "admin";
   const threads = feedback.threads.filter(
     (thread) =>
       filter === "all" ||
@@ -561,6 +622,7 @@ function Project({
           <p className="muted">No tokens created.</p>
         )}
       </section>
+      <ProjectTeam projectId={projectId} canAdmin={canAdmin} />
       <div className="feedback-head">
         <h2>Feedback</h2>
         <div className="segmented">
@@ -613,6 +675,159 @@ function Project({
           />
         ) : null}
       </div>
+    </section>
+  );
+}
+
+function ProjectTeam({
+  projectId,
+  canAdmin,
+}: {
+  projectId: Id<"projects">;
+  canAdmin: boolean;
+}) {
+  const members = useQuery(api.projectAccess.members, { projectId });
+  const invite = useMutation(api.projectAccess.invite);
+  const remove = useMutation(api.projectAccess.remove);
+  const setRole = useMutation(api.projectAccess.setRole);
+  const origins = useQuery(api.projectAccess.origins, { projectId });
+  const addOrigin = useMutation(api.projectAccess.addOrigin);
+  const removeOrigin = useMutation(api.projectAccess.removeOrigin);
+  const [issued, setIssued] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <section className="team-section">
+      <div>
+        <p className="eyebrow">Project access</p>
+        <h2>Assigned members</h2>
+      </div>
+      <div className="card member-list">
+        {members?.map((member) => (
+          <div key={member._id}>
+            <span>
+              <b>{member.name}</b>
+              <small>{member.email}</small>
+            </span>
+            <span className="member-actions">
+              {canAdmin ? (
+                <select
+                  value={member.role}
+                  onChange={(event) =>
+                    void setRole({
+                      projectId,
+                      userId: member.userId,
+                      role: event.target.value as "admin" | "commenter" | "viewer",
+                    }).catch((reason) => setError(errorMessage(reason)))
+                  }
+                >
+                  <option value="admin">Admin</option>
+                  <option value="commenter">Commenter</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+              ) : (
+                <span className="role">{member.role}</span>
+              )}
+              {canAdmin ? (
+                <button
+                  onClick={() => {
+                    if (confirm(`Remove ${member.name} from this project?`))
+                      void remove({ membershipId: member._id }).catch((reason) =>
+                        setError(errorMessage(reason)),
+                      );
+                  }}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </span>
+          </div>
+        ))}
+      </div>
+      {canAdmin ? (
+        <form
+          className="card invite-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setError("");
+            const form = event.currentTarget;
+            const data = new FormData(form);
+            const rawToken = randomKey("mmv");
+            try {
+              await invite({
+                projectId,
+                email: String(data.get("email")),
+                role: String(data.get("role")) as "admin" | "commenter" | "viewer",
+                tokenHash: await sha256(rawToken),
+              });
+              setIssued(
+                `${location.origin}/?project_invite=${encodeURIComponent(rawToken)}`,
+              );
+              form.reset();
+            } catch (reason) {
+              setError(errorMessage(reason));
+            }
+          }}
+        >
+          <Field label="Invite to project" name="email" type="email" required />
+          <label className="field">
+            <span>Project role</span>
+            <select name="role" defaultValue="commenter">
+              <option value="admin">Admin</option>
+              <option value="commenter">Commenter</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </label>
+          <button className="primary" type="submit">Create project invite</button>
+          {issued ? <Notice tone="success"><code>{issued}</code></Notice> : null}
+          {error ? <Notice tone="error">{error}</Notice> : null}
+        </form>
+      ) : null}
+      <div>
+        <p className="eyebrow">Deployed mocks</p>
+        <h2>Authorized origins</h2>
+      </div>
+      <div className="card member-list">
+        {origins?.map((item) => (
+          <div key={item._id}>
+            <code>{item.origin}</code>
+            {canAdmin ? (
+              <button onClick={() => void removeOrigin({ originId: item._id })}>
+                Remove
+              </button>
+            ) : null}
+          </div>
+        ))}
+        {origins?.length === 0 ? (
+          <p className="muted">Add each deployed mock origin. Localhost works automatically.</p>
+        ) : null}
+      </div>
+      {canAdmin ? (
+        <form
+          className="card invite-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            try {
+              await addOrigin({
+                projectId,
+                origin: String(new FormData(form).get("origin")),
+              });
+              form.reset();
+            } catch (reason) {
+              setError(errorMessage(reason));
+            }
+          }}
+        >
+          <Field
+            label="Mock origin"
+            name="origin"
+            type="url"
+            placeholder="https://preview.example.com"
+            required
+          />
+          <button className="primary" type="submit">Authorize origin</button>
+        </form>
+      ) : null}
     </section>
   );
 }

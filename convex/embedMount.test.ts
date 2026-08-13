@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest";
 import { shouldMountMockmark } from "../src/embed/mount";
 
 describe("host-page mount guard", () => {
-  test("stays invisible on deployed pages without review access", () => {
-    expect(shouldMountMockmark("app.example.com", "", false)).toBe(false);
+  test("mounts a locked shell on deployed pages so members can sign in", () => {
+    expect(shouldMountMockmark("app.example.com", "", false)).toBe(true);
   });
 
   test("mounts for local development and authorized review links", () => {

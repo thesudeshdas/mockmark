@@ -112,15 +112,13 @@ export const readWithToken = internalMutation({
     requiredKind: v.union(v.literal("installation"), v.literal("review")),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(
-      ctx,
-      args.tokenHash,
-      args.projectKey,
-      args.requiredKind,
-    );
+    const access =
+      args.requiredKind === "installation"
+        ? await requireAccess(ctx, args.tokenHash, args.projectKey, "installation")
+        : await requireReviewAccess(ctx, args.tokenHash, args.projectKey, "viewer");
     await consumeRateLimit(
       ctx,
-      `${access.token._id}:read`,
+      `${access.rateKey}:read`,
       240,
     );
     const page = args.pageKey
@@ -206,23 +204,25 @@ export const createThreadWithToken = internalMutation({
     body: v.string(),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(
+    const access = await requireReviewAccess(
       ctx,
       args.tokenHash,
       args.projectKey,
-      "review",
+      "commenter",
     );
     const prior = await idempotentResult(
       ctx,
-      access.token._id,
+      access,
       "thread.create",
       args.requestId,
     );
     if (prior) return prior;
-    await consumeRateLimit(ctx, `${access.token._id}:create`, 30);
+    await consumeRateLimit(ctx, `${access.rateKey}:create`, 30);
     validateRegion(args);
-    const authorName = cleanText(args.authorName, "Author name", 2, 80);
-    const authorEmail = cleanEmail(args.authorEmail);
+    const authorName = access.user
+      ? cleanText(access.user.name ?? "Member", "Author name", 2, 80)
+      : cleanText(args.authorName, "Author name", 2, 80);
+    const authorEmail = access.user?.email ?? cleanEmail(args.authorEmail);
     const body = cleanBody(args.body);
     const now = Date.now();
     let page = await ctx.db
@@ -297,18 +297,20 @@ export const createThreadWithToken = internalMutation({
       messageId,
       body,
     );
-    await ctx.db.patch(access.token._id, { lastUsedAt: now });
+    if (access.kind === "review")
+      await ctx.db.patch(access.token._id, { lastUsedAt: now });
     await audit(ctx, {
       organizationId: access.project.organizationId,
       projectId: access.project._id,
-      actorName: authorName,
+      actorUserId: access.user?._id,
+      actorName: access.user ? undefined : authorName,
       action: "thread.created",
       targetType: "thread",
       targetId: threadId,
     });
     await rememberIdempotentResult(
       ctx,
-      access.token._id,
+      access,
       "thread.create",
       args.requestId,
       threadId,
@@ -348,26 +350,28 @@ export const replyWithToken = internalMutation({
     body: v.string(),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(
+    const access = await requireReviewAccess(
       ctx,
       args.tokenHash,
       args.projectKey,
-      "review",
+      "commenter",
     );
     const prior = await idempotentResult(
       ctx,
-      access.token._id,
+      access,
       "message.reply",
       args.requestId,
     );
     if (prior) return prior;
-    await consumeRateLimit(ctx, `${access.token._id}:reply`, 60);
+    await consumeRateLimit(ctx, `${access.rateKey}:reply`, 60);
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
       throw new ConvexError("Thread not found.");
     if (thread.resolvedAt) throw new ConvexError("Thread is resolved.");
-    const authorName = cleanText(args.authorName, "Author name", 2, 80);
-    const authorEmail = cleanEmail(args.authorEmail);
+    const authorName = access.user
+      ? cleanText(access.user.name ?? "Member", "Author name", 2, 80)
+      : cleanText(args.authorName, "Author name", 2, 80);
+    const authorEmail = access.user?.email ?? cleanEmail(args.authorEmail);
     const body = cleanBody(args.body);
     const now = Date.now();
     const messageId = await ctx.db.insert("messages", {
@@ -389,14 +393,15 @@ export const replyWithToken = internalMutation({
     await audit(ctx, {
       organizationId: access.project.organizationId,
       projectId: access.project._id,
-      actorName: authorName,
+      actorUserId: access.user?._id,
+      actorName: access.user ? undefined : authorName,
       action: "message.created",
       targetType: "message",
       targetId: messageId,
     });
     await rememberIdempotentResult(
       ctx,
-      access.token._id,
+      access,
       "message.reply",
       args.requestId,
       messageId,
@@ -434,17 +439,19 @@ export const setResolvedWithToken = internalMutation({
     resolved: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(
+    const access = await requireReviewAccess(
       ctx,
       args.tokenHash,
       args.projectKey,
-      "review",
+      "commenter",
     );
-    await consumeRateLimit(ctx, `${access.token._id}:resolve`, 120);
+    await consumeRateLimit(ctx, `${access.rateKey}:resolve`, 120);
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
       throw new ConvexError("Thread not found.");
-    const authorName = cleanText(args.authorName, "Author name", 2, 80);
+    const authorName = access.user
+      ? cleanText(access.user.name ?? "Member", "Author name", 2, 80)
+      : cleanText(args.authorName, "Author name", 2, 80);
     const now = Date.now();
     await ctx.db.patch(
       thread._id,
@@ -455,7 +462,8 @@ export const setResolvedWithToken = internalMutation({
     await audit(ctx, {
       organizationId: access.project.organizationId,
       projectId: access.project._id,
-      actorName: authorName,
+      actorUserId: access.user?._id,
+      actorName: access.user ? undefined : authorName,
       action: args.resolved ? "thread.resolved" : "thread.reopened",
       targetType: "thread",
       targetId: thread._id,
@@ -494,13 +502,13 @@ export const toggleReactionWithToken = internalMutation({
     authorEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(
+    const access = await requireReviewAccess(
       ctx,
       args.tokenHash,
       args.projectKey,
-      "review",
+      "commenter",
     );
-    await consumeRateLimit(ctx, `${access.token._id}:reaction`, 240);
+    await consumeRateLimit(ctx, `${access.rateKey}:reaction`, 240);
     const message = await ctx.db.get(args.messageId);
     if (
       !message ||
@@ -510,8 +518,11 @@ export const toggleReactionWithToken = internalMutation({
       throw new ConvexError("Message not found.");
     if (!ALLOWED_REACTIONS.has(args.emoji))
       throw new ConvexError("Unsupported reaction.");
-    const authorName = cleanText(args.authorName, "Author name", 2, 80);
-    const authorKey = cleanEmail(args.authorEmail) ?? authorName.toLowerCase();
+    const authorName = access.user
+      ? cleanText(access.user.name ?? "Member", "Author name", 2, 80)
+      : cleanText(args.authorName, "Author name", 2, 80);
+    const authorKey =
+      access.user?.email ?? cleanEmail(args.authorEmail) ?? authorName.toLowerCase();
     const existing = await ctx.db
       .query("reactions")
       .withIndex("by_message_author_emoji", (q) =>
@@ -563,42 +574,142 @@ async function requireAccess(
     (token.expiresAt && token.expiresAt < Date.now())
   )
     throw new ConvexError("Review access is invalid or expired.");
-  return { token, project };
+  return { token, project, rateKey: String(token._id) };
+}
+
+type ReviewAccess =
+  | {
+      kind: "review";
+      token: any;
+      project: any;
+      user: null;
+      rateKey: string;
+    }
+  | {
+      kind: "member";
+      session: any;
+      project: any;
+      user: any;
+      rateKey: string;
+    };
+
+async function requireReviewAccess(
+  ctx: any,
+  tokenHash: string,
+  projectKey: string,
+  minimum: "viewer" | "commenter",
+): Promise<ReviewAccess> {
+  const project = await ctx.db
+    .query("projects")
+    .withIndex("by_project_key", (q: any) => q.eq("projectKey", projectKey))
+    .unique();
+  if (!project || project.deletedAt)
+    throw new ConvexError("Review access is invalid or expired.");
+
+  const reviewToken = await ctx.db
+    .query("accessTokens")
+    .withIndex("by_token_hash", (q: any) => q.eq("tokenHash", tokenHash))
+    .unique();
+  if (
+    reviewToken?.projectId === project._id &&
+    reviewToken.kind === "review" &&
+    !reviewToken.revokedAt &&
+    (!reviewToken.expiresAt || reviewToken.expiresAt >= Date.now())
+  )
+    return {
+      kind: "review",
+      token: reviewToken,
+      project,
+      user: null,
+      rateKey: String(reviewToken._id),
+    };
+
+  const session = await ctx.db
+    .query("memberPreviewSessions")
+    .withIndex("by_token_hash", (q: any) => q.eq("tokenHash", tokenHash))
+    .unique();
+  if (
+    !session ||
+    session.projectId !== project._id ||
+    session.revokedAt ||
+    session.expiresAt < Date.now()
+  )
+    throw new ConvexError("Review access is invalid or expired.");
+  const [projectMembership, workspaceMembership, user] = await Promise.all([
+    ctx.db
+      .query("projectMemberships")
+      .withIndex("by_project_user", (q: any) =>
+        q.eq("projectId", project._id).eq("userId", session.userId),
+      )
+      .unique(),
+    ctx.db
+      .query("memberships")
+      .withIndex("by_org_user", (q: any) =>
+        q.eq("organizationId", project.organizationId).eq("userId", session.userId),
+      )
+      .unique(),
+    ctx.db.get(session.userId),
+  ]);
+  const roleRank = { viewer: 0, commenter: 1, admin: 2 } as const;
+  if (
+    !projectMembership ||
+    !workspaceMembership ||
+    !user ||
+    roleRank[projectMembership.role as keyof typeof roleRank] < roleRank[minimum]
+  )
+    throw new ConvexError("Review access is invalid or expired.");
+  return {
+    kind: "member",
+    session,
+    project,
+    user,
+    rateKey: String(session._id),
+  };
 }
 
 type IdempotentOperation = "thread.create" | "message.reply";
 
 async function idempotentResult(
   ctx: any,
-  tokenId: any,
+  access: ReviewAccess,
   operation: IdempotentOperation,
   requestId?: string,
 ) {
   if (!requestId) return null;
   validateRequestId(requestId);
+  const query = ctx.db.query("idempotencyKeys");
   return (
-    await ctx.db
-      .query("idempotencyKeys")
-      .withIndex("by_token_operation_request", (q: any) =>
-        q
-          .eq("tokenId", tokenId)
-          .eq("operation", operation)
-          .eq("requestId", requestId),
-      )
-      .unique()
+    access.kind === "review"
+      ? await query
+          .withIndex("by_token_operation_request", (q: any) =>
+            q
+              .eq("tokenId", access.token._id)
+              .eq("operation", operation)
+              .eq("requestId", requestId),
+          )
+          .unique()
+      : await query
+          .withIndex("by_preview_operation_request", (q: any) =>
+            q
+              .eq("previewSessionId", access.session._id)
+              .eq("operation", operation)
+              .eq("requestId", requestId),
+          )
+          .unique()
   )?.resultId;
 }
 
 async function rememberIdempotentResult(
   ctx: any,
-  tokenId: any,
+  access: ReviewAccess,
   operation: IdempotentOperation,
   requestId: string | undefined,
   resultId: string,
 ) {
   if (!requestId) return;
   await ctx.db.insert("idempotencyKeys", {
-    tokenId,
+    tokenId: access.kind === "review" ? access.token._id : undefined,
+    previewSessionId: access.kind === "member" ? access.session._id : undefined,
     operation,
     requestId,
     resultId,
@@ -726,8 +837,8 @@ async function addMentions(
   );
   if (!handles.length) return;
   const memberships = await ctx.db
-    .query("memberships")
-    .withIndex("by_org", (q: any) => q.eq("organizationId", organizationId))
+    .query("projectMemberships")
+    .withIndex("by_project", (q: any) => q.eq("projectId", projectId))
     .collect();
   for (const membership of memberships) {
     const user = await ctx.db.get(membership.userId);

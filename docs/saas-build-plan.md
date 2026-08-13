@@ -18,7 +18,7 @@ Payments are outside this scope.
 
 3. CLI creates `.mockmark.json`, injects a hosted preview loader, and stores a project-scoped installation token outside the repository. No reusable secret is committed.
 4. Team runs its normal mock/dev server. Mockmark appears only on pages built from that repository.
-5. Signed-in reviewers pin regions, comment, reply, react, mention teammates, resolve, or reopen threads.
+5. Explicitly assigned project members sign in from a deployed mock; commenters and admins can pin regions, comment, reply, react, mention teammates, resolve, or reopen threads.
 6. Comments sync to Mockmark's hosted backend in real time.
 7. AI agent runs `npx mockmark comments` to receive structured unresolved feedback. Agent decides what to do using the repository's own instructions.
 
@@ -52,9 +52,10 @@ Package must remain thin. Hosted services own persistence, authorization, realti
 
 ### 4. Identity and access
 
-- Email login initially; organization invites and roles: owner, admin, commenter, viewer.
+- Email login initially; workspace roles plus explicit per-project `admin`, `commenter`, and `viewer` assignments.
 - Short-lived dashboard sessions and revocable CLI installation tokens.
-- Review-link access policy: organization-only or explicitly invited guests.
+- Workspace membership alone reveals no projects. Project invitations may join a workspace while granting only their target project.
+- Signed-in member preview sessions are short-lived and membership-backed; review tokens remain optional external guest passes.
 - Project isolation: Codebase A credentials cannot read Codebase B.
 - Session revocation, member removal, and audit trail.
 

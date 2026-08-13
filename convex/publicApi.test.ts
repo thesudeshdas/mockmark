@@ -183,6 +183,21 @@ describe("public review API", () => {
     expect(cliResult.project.key).toBe(projectKey);
   });
 
+  test("rejects revoked and expired guest review passes", async () => {
+    const t = convexTest(schema, modules);
+    const { projectKey, reviewTokenId } = await seed(t);
+    await t.run((ctx) => ctx.db.patch(reviewTokenId!, { revokedAt: Date.now() }));
+    await expect(
+      t.action(api.publicApi.readReview, { token: reviewToken, projectKey }),
+    ).rejects.toThrow(/invalid or expired/i);
+    await t.run((ctx) =>
+      ctx.db.patch(reviewTokenId!, { revokedAt: undefined, expiresAt: Date.now() - 1 }),
+    );
+    await expect(
+      t.action(api.publicApi.readReview, { token: reviewToken, projectKey }),
+    ).rejects.toThrow(/invalid or expired/i);
+  });
+
   test("rate limits public writes per token", async () => {
     const t = convexTest(schema, modules);
     const { projectKey, reviewTokenId } = await seed(t);

@@ -81,6 +81,7 @@ class MockmarkEmbed {
     this.root = this.host.attachShadow({ mode: "open" });
     document.body.append(this.host);
     this.captureToken();
+    this.bindAuthorization();
     this.bindDocument();
     this.render();
     if (this.token) void this.refresh();
@@ -101,6 +102,24 @@ class MockmarkEmbed {
       queryToken ??
       sessionStorage.getItem(`mockmark.token.${this.config.projectKey}`) ??
       "";
+  }
+
+  private bindAuthorization() {
+    if (!this.config.appUrl) return;
+    const appOrigin = new URL(this.config.appUrl).origin;
+    window.addEventListener("message", (event) => {
+      if (
+        event.origin !== appOrigin ||
+        event.data?.type !== "mockmark:authorized" ||
+        event.data?.projectKey !== this.config.projectKey ||
+        typeof event.data?.token !== "string" ||
+        !event.data.token.startsWith("mms_")
+      )
+        return;
+      this.token = event.data.token;
+      sessionStorage.setItem(`mockmark.token.${this.config.projectKey}`, this.token);
+      void this.refresh();
+    });
   }
 
   private pageKey() {
@@ -224,7 +243,7 @@ class MockmarkEmbed {
   }
 
   private accessHtml() {
-    return `<aside class="mm-panel mm-access"><button class="mm-x" data-do="close">×</button><b>Open this review</b><p>Paste review token from your Mockmark project admin.</p><form data-form="access"><input name="token" type="password" placeholder="mmr_…" required><button class="primary">Open review</button></form></aside>`;
+    return `<aside class="mm-panel mm-access"><button class="mm-x" data-do="close">×</button><b>Open this mock</b><p>Team member? Sign in. External reviewer? Use a guest review token.</p>${this.config.appUrl ? `<button class="primary" data-do="sign-in">Sign in with Mockmark</button>` : ""}<form data-form="access"><input name="token" type="password" placeholder="Guest token: mmr_…" required><button class="primary">Use guest pass</button></form></aside>`;
   }
   private composerHtml() {
     return `<aside class="mm-panel"><button class="mm-x" data-do="cancel">×</button><b>New comment</b><p>${this.draft?.width ? "Region selected." : "Point selected."}</p><form data-form="new">${this.identityHtml()}<textarea name="body" placeholder="Leave feedback…" maxlength="4000" required></textarea><button class="primary">Post comment</button></form></aside>`;
@@ -250,6 +269,7 @@ class MockmarkEmbed {
       )}</div><div class="mm-actions"><button data-resolve="${thread._id}">${thread.resolvedAt ? "Reopen" : "Resolve"}</button></div>${thread.resolvedAt ? "" : `<form data-form="reply">${this.identityHtml()}<textarea name="body" placeholder="Reply…" maxlength="4000" required></textarea><button class="primary">Send</button></form>`}</aside>`;
   }
   private identityHtml() {
+    if (this.token.startsWith("mms_")) return "";
     return `<div class="mm-identity"><input name="authorName" value="${escapeHtml(this.authorName)}" placeholder="Your name" required minlength="2"><input name="authorEmail" value="${escapeHtml(this.authorEmail)}" placeholder="Email (optional)" type="email"></div>`;
   }
 
@@ -261,6 +281,14 @@ class MockmarkEmbed {
         this.render();
       }),
     );
+    this.root
+      .querySelector('[data-do="sign-in"]')
+      ?.addEventListener("click", () => {
+        const url = new URL(this.config.appUrl!);
+        url.searchParams.set("mockmark_authorize", this.config.projectKey);
+        url.searchParams.set("origin", location.origin);
+        window.open(url, "mockmark-auth", "popup,width=520,height=720");
+      });
     this.root
       .querySelector('[data-do="annotate"]')
       ?.addEventListener("click", () => {
@@ -332,6 +360,7 @@ class MockmarkEmbed {
   }
 
   private readIdentity(form?: HTMLFormElement) {
+    if (this.token.startsWith("mms_")) return { authorName: "Member" };
     if (form) {
       const data = new FormData(form);
       this.authorName = String(data.get("authorName") ?? "").trim();

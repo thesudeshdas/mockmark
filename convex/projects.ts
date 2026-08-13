@@ -6,13 +6,21 @@ import { cleanText, slugify } from "./lib/validation";
 export const list = query({
   args: { organizationId: v.id("organizations") },
   handler: async (ctx, args) => {
-    await requireMembership(ctx, args.organizationId);
-    return (
-      await ctx.db
-        .query("projects")
-        .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId))
-        .collect()
-    ).filter((project) => !project.deletedAt);
+    const { userId } = await requireMembership(ctx, args.organizationId);
+    const projectMemberships = await ctx.db
+      .query("projectMemberships")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    const projects = await Promise.all(
+      projectMemberships.map((membership) => ctx.db.get(membership.projectId)),
+    );
+    return projects.filter(
+      (project): project is NonNullable<typeof project> =>
+        Boolean(project) &&
+        project !== null &&
+        project.organizationId === args.organizationId &&
+        !project.deletedAt,
+    );
   },
 });
 
@@ -46,6 +54,13 @@ export const create = mutation({
       createdBy: userId,
       createdAt: Date.now(),
     });
+    await ctx.db.insert("projectMemberships", {
+      projectId,
+      userId,
+      role: "admin",
+      addedBy: userId,
+      createdAt: Date.now(),
+    });
     await audit(ctx, {
       organizationId: args.organizationId,
       projectId,
@@ -72,10 +87,12 @@ export const detail = query({
         .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
         .order("desc")
         .take(30),
-      ctx.db
-        .query("accessTokens")
-        .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-        .collect(),
+      membership.role === "admin"
+        ? ctx.db
+            .query("accessTokens")
+            .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+            .collect()
+        : Promise.resolve([]),
     ]);
     return {
       project,
