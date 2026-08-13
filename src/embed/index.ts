@@ -351,6 +351,8 @@ class MockmarkEmbed {
       const identity = this.readIdentity(form);
       const data = new FormData(form);
       const anchor = anchorAt(this.draft!, this.pageSize());
+      const requestId =
+        form.dataset.requestId ?? (form.dataset.requestId = crypto.randomUUID());
       await this.client.action(createRef, {
         token: this.token,
         projectKey: this.config.projectKey,
@@ -364,6 +366,7 @@ class MockmarkEmbed {
         ...anchor,
         viewportWidth: innerWidth,
         viewportHeight: innerHeight,
+        requestId,
         ...identity,
         body: String(data.get("body") ?? ""),
       });
@@ -378,10 +381,13 @@ class MockmarkEmbed {
     const form = event.currentTarget as HTMLFormElement;
     try {
       const identity = this.readIdentity(form);
+      const requestId =
+        form.dataset.requestId ?? (form.dataset.requestId = crypto.randomUUID());
       await this.client.action(replyRef, {
         token: this.token,
         projectKey: this.config.projectKey,
         threadId: this.activeId,
+        requestId,
         ...identity,
         body: String(new FormData(form).get("body") ?? ""),
       });

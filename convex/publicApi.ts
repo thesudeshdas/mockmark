@@ -163,6 +163,7 @@ export const createThread = action({
     nearbyText: v.optional(v.string()),
     viewportWidth: v.number(),
     viewportHeight: v.number(),
+    requestId: v.optional(v.string()),
     ...author,
     body: v.string(),
   },
@@ -194,6 +195,7 @@ export const createThreadWithToken = internalMutation({
     nearbyText: v.optional(v.string()),
     viewportWidth: v.number(),
     viewportHeight: v.number(),
+    requestId: v.optional(v.string()),
     ...author,
     body: v.string(),
   },
@@ -204,6 +206,13 @@ export const createThreadWithToken = internalMutation({
       args.projectKey,
       "review",
     );
+    const prior = await idempotentResult(
+      ctx,
+      access.token._id,
+      "thread.create",
+      args.requestId,
+    );
+    if (prior) return prior;
     await consumeRateLimit(ctx, `${access.token._id}:create`, 30);
     validateRegion(args);
     const authorName = cleanText(args.authorName, "Author name", 2, 80);
@@ -291,6 +300,13 @@ export const createThreadWithToken = internalMutation({
       targetType: "thread",
       targetId: threadId,
     });
+    await rememberIdempotentResult(
+      ctx,
+      access.token._id,
+      "thread.create",
+      args.requestId,
+      threadId,
+    );
     return threadId;
   },
 });
@@ -300,6 +316,7 @@ export const reply = action({
     token: v.string(),
     projectKey: v.string(),
     threadId: v.id("threads"),
+    requestId: v.optional(v.string()),
     ...author,
     body: v.string(),
   },
@@ -318,6 +335,7 @@ export const replyWithToken = internalMutation({
     tokenHash: v.string(),
     projectKey: v.string(),
     threadId: v.id("threads"),
+    requestId: v.optional(v.string()),
     ...author,
     body: v.string(),
   },
@@ -328,6 +346,13 @@ export const replyWithToken = internalMutation({
       args.projectKey,
       "review",
     );
+    const prior = await idempotentResult(
+      ctx,
+      access.token._id,
+      "message.reply",
+      args.requestId,
+    );
+    if (prior) return prior;
     await consumeRateLimit(ctx, `${access.token._id}:reply`, 60);
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
@@ -361,6 +386,13 @@ export const replyWithToken = internalMutation({
       targetType: "message",
       targetId: messageId,
     });
+    await rememberIdempotentResult(
+      ctx,
+      access.token._id,
+      "message.reply",
+      args.requestId,
+      messageId,
+    );
     return messageId;
   },
 });
@@ -520,6 +552,51 @@ async function requireAccess(
   )
     throw new ConvexError("Review access is invalid or expired.");
   return { token, project };
+}
+
+type IdempotentOperation = "thread.create" | "message.reply";
+
+async function idempotentResult(
+  ctx: any,
+  tokenId: any,
+  operation: IdempotentOperation,
+  requestId?: string,
+) {
+  if (!requestId) return null;
+  validateRequestId(requestId);
+  return (
+    await ctx.db
+      .query("idempotencyKeys")
+      .withIndex("by_token_operation_request", (q: any) =>
+        q
+          .eq("tokenId", tokenId)
+          .eq("operation", operation)
+          .eq("requestId", requestId),
+      )
+      .unique()
+  )?.resultId;
+}
+
+async function rememberIdempotentResult(
+  ctx: any,
+  tokenId: any,
+  operation: IdempotentOperation,
+  requestId: string | undefined,
+  resultId: string,
+) {
+  if (!requestId) return;
+  await ctx.db.insert("idempotencyKeys", {
+    tokenId,
+    operation,
+    requestId,
+    resultId,
+    createdAt: Date.now(),
+  });
+}
+
+function validateRequestId(requestId: string) {
+  if (!/^[A-Za-z0-9._:-]{16,128}$/.test(requestId))
+    throw new ConvexError("Invalid request identifier.");
 }
 
 async function hydrateProject(

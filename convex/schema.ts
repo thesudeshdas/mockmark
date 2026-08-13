@@ -71,6 +71,17 @@ export default defineSchema({
     count: v.number(),
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+  idempotencyKeys: defineTable({
+    tokenId: v.id("accessTokens"),
+    operation: v.union(v.literal("thread.create"), v.literal("message.reply")),
+    requestId: v.string(),
+    resultId: v.string(),
+    createdAt: v.number(),
+  }).index("by_token_operation_request", [
+    "tokenId",
+    "operation",
+    "requestId",
+  ]),
   builds: defineTable({
     projectId: v.id("projects"),
     buildKey: v.string(),

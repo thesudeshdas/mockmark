@@ -211,4 +211,51 @@ describe("public review API", () => {
       }),
     ).rejects.toThrow(/too many requests/i);
   });
+
+  test("deduplicates retried thread and reply writes", async () => {
+    const t = convexTest(schema, modules);
+    const { projectKey } = await seed(t);
+    const createArgs = {
+      token: reviewToken,
+      projectKey,
+      pageKey: "localhost/mock.html",
+      path: "/mock.html",
+      title: "Mock",
+      x: 0.25,
+      y: 0.25,
+      viewportWidth: 800,
+      viewportHeight: 600,
+      authorName: "Reviewer",
+      body: "Only create this once.",
+      requestId: "request-thread-0001",
+    };
+    const firstThread: any = await t.action(
+      api.publicApi.createThread,
+      createArgs,
+    );
+    const retriedThread: any = await t.action(
+      api.publicApi.createThread,
+      createArgs,
+    );
+    expect(retriedThread).toBe(firstThread);
+
+    const replyArgs = {
+      token: reviewToken,
+      projectKey,
+      threadId: firstThread,
+      authorName: "Reviewer",
+      body: "Only reply once.",
+      requestId: "request-reply-0001",
+    };
+    const firstReply = await t.action(api.publicApi.reply, replyArgs);
+    const retriedReply = await t.action(api.publicApi.reply, replyArgs);
+    expect(retriedReply).toBe(firstReply);
+
+    const result: any = await t.action(api.publicApi.readReview, {
+      token: reviewToken,
+      projectKey,
+    });
+    expect(result.threads).toHaveLength(1);
+    expect(result.threads[0].messages).toHaveLength(2);
+  });
 });
