@@ -12,11 +12,11 @@ Payments are outside this scope.
 2. Developer installs Mockmark only in the chosen repository:
 
    ```bash
-   npm install -D @mockmark/client
+   npm install -D mockmark
    npx mockmark init
    ```
 
-3. CLI creates `.mockmark.json`, adds a dev-only preview import, and links the local repo through browser/device authentication. No reusable secret is committed.
+3. CLI creates `.mockmark.json`, injects a hosted preview loader, and stores a project-scoped installation token outside the repository. No reusable secret is committed.
 4. Team runs its normal mock/dev server. Mockmark appears only on pages built from that repository.
 5. Signed-in reviewers pin regions, comment, reply, react, mention teammates, resolve, or reopen threads.
 6. Comments sync to Mockmark's hosted backend in real time.
@@ -26,7 +26,7 @@ Payments are outside this scope.
 
 ### 1. Repository integration
 
-- Replace copied client assets with `@mockmark/client` and a `mockmark` CLI.
+- Replace copied client assets with the `mockmark` package and CLI.
 - `init`, `login`, `status`, `comments`, `open`, and `uninstall` commands.
 - Framework-neutral browser bootstrap plus adapters for common Vite/Next.js setups.
 - Dev/preview-only guard so Mockmark cannot accidentally ship into production.
@@ -53,7 +53,7 @@ Package must remain thin. Hosted services own persistence, authorization, realti
 ### 4. Identity and access
 
 - Email login initially; organization invites and roles: owner, admin, commenter, viewer.
-- Short-lived browser sessions and CLI device authorization.
+- Short-lived dashboard sessions and revocable CLI installation tokens.
 - Review-link access policy: organization-only or explicitly invited guests.
 - Project isolation: Codebase A credentials cannot read Codebase B.
 - Session revocation, member removal, and audit trail.

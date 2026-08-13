@@ -45,6 +45,8 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 - Remove member access at organization membership layer.
 - Archive project to reject all token access.
 - Inspect `auditEvents` for token, thread, member, and project actions.
+- Review and installation tokens have separate capabilities. Review tokens cannot power the CLI; installation tokens cannot write annotations.
+- Public reads and writes are transactionally rate-limited per token.
 - Convex backups and retention policy must be configured before production clients.
 
 ## Release checklist
@@ -52,6 +54,7 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 - `npm run check`
 - `npm run build`
 - `npm run pack:check`
+- `npm audit --omit=dev`
 - Anonymous local Convex push succeeds.
 - Real local browser smoke test passes.
 - Production Convex functions and `/health` verified.

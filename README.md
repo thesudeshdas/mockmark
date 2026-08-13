@@ -85,6 +85,8 @@ See [docs/saas-build-plan.md](docs/saas-build-plan.md) and [docs/operations.md](
 - Every stored entity is project/organization scoped.
 - Dashboard operations require authenticated membership and role checks.
 - Embedded review and CLI operations require hashed, revocable, project-scoped tokens.
+- Review tokens can annotate but cannot power the CLI; installation tokens can read feedback but cannot annotate.
+- Public token traffic is rate-limited transactionally.
 - No organization credential is committed to client repositories.
 - Browser-delivered code is inspectable. Authorization, persistence, tenancy, and audit logic remain server-side.
 
