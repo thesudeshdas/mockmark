@@ -38,7 +38,7 @@ declare global {
 }
 
 const readRef = makeFunctionReference<"action", any, Feedback>(
-  "publicApi:read",
+  "publicApi:readReview",
 );
 const createRef = makeFunctionReference<"action", any, string>(
   "publicApi:createThread",

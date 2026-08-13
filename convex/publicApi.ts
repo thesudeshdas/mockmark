@@ -74,6 +74,25 @@ export const read = action({
     return ctx.runQuery(internal.publicApi.readWithToken, {
       ...args,
       tokenHash,
+      requiredKind: "installation",
+    });
+  },
+});
+
+export const readReview = action({
+  args: {
+    token: v.string(),
+    projectKey: v.string(),
+    pageKey: v.optional(v.string()),
+    unresolvedOnly: v.optional(v.boolean()),
+    updatedSince: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<unknown> => {
+    const tokenHash = await hashToken(args.token);
+    return ctx.runQuery(internal.publicApi.readWithToken, {
+      ...args,
+      tokenHash,
+      requiredKind: "review",
     });
   },
 });
@@ -86,9 +105,15 @@ export const readWithToken = internalQuery({
     pageKey: v.optional(v.string()),
     unresolvedOnly: v.optional(v.boolean()),
     updatedSince: v.optional(v.number()),
+    requiredKind: v.union(v.literal("installation"), v.literal("review")),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(ctx, args.tokenHash, args.projectKey);
+    const access = await requireAccess(
+      ctx,
+      args.tokenHash,
+      args.projectKey,
+      args.requiredKind,
+    );
     const page = args.pageKey
       ? await ctx.db
           .query("pages")
@@ -168,7 +193,12 @@ export const createThreadWithToken = internalMutation({
     body: v.string(),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(ctx, args.tokenHash, args.projectKey);
+    const access = await requireAccess(
+      ctx,
+      args.tokenHash,
+      args.projectKey,
+      "review",
+    );
     validateRegion(args);
     const authorName = cleanText(args.authorName, "Author name", 2, 80);
     const authorEmail = cleanEmail(args.authorEmail);
@@ -286,7 +316,12 @@ export const replyWithToken = internalMutation({
     body: v.string(),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(ctx, args.tokenHash, args.projectKey);
+    const access = await requireAccess(
+      ctx,
+      args.tokenHash,
+      args.projectKey,
+      "review",
+    );
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
       throw new ConvexError("Thread not found.");
@@ -350,7 +385,12 @@ export const setResolvedWithToken = internalMutation({
     resolved: v.boolean(),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(ctx, args.tokenHash, args.projectKey);
+    const access = await requireAccess(
+      ctx,
+      args.tokenHash,
+      args.projectKey,
+      "review",
+    );
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.projectId !== access.project._id || thread.deletedAt)
       throw new ConvexError("Thread not found.");
@@ -402,7 +442,12 @@ export const toggleReactionWithToken = internalMutation({
     authorEmail: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const access = await requireAccess(ctx, args.tokenHash, args.projectKey);
+    const access = await requireAccess(
+      ctx,
+      args.tokenHash,
+      args.projectKey,
+      "review",
+    );
     const message = await ctx.db.get(args.messageId);
     if (
       !message ||
@@ -439,7 +484,12 @@ export const toggleReactionWithToken = internalMutation({
   },
 });
 
-async function requireAccess(ctx: any, tokenHash: string, projectKey: string) {
+async function requireAccess(
+  ctx: any,
+  tokenHash: string,
+  projectKey: string,
+  requiredKind: "installation" | "review",
+) {
   const [token, project] = await Promise.all([
     ctx.db
       .query("accessTokens")
@@ -454,6 +504,7 @@ async function requireAccess(ctx: any, tokenHash: string, projectKey: string) {
     !token ||
     !project ||
     token.projectId !== project._id ||
+    token.kind !== requiredKind ||
     token.revokedAt ||
     project.deletedAt ||
     (token.expiresAt && token.expiresAt < Date.now())
