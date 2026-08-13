@@ -1,77 +1,93 @@
 # Mockmark
 
-Backendless, private comments and annotations for static HTML mocks.
+Repo-scoped annotation and conversation for HTML mocks. Teams install a thin loader only in repositories that need feedback. Conversations remain in Mockmark's hosted Convex deployment and can be read by the team's existing AI agent through the CLI.
 
-Mockmark adds a Figma-style review layer to HTML mockups: numbered pins, drag-to-select regions, threaded replies, reactions, resolve/delete, and an all-comments panel.
+Mockmark does not design, suggest fixes, change code, or prescribe workflow.
 
-## Privacy model
+## Client installation
 
-Mockmark does **not** include a backend, hosted service, telemetry, database, or network sync.
-
-- Comments stay in the reviewer's browser `localStorage`.
-- Nothing is sent to Mockmark or to the project owner.
-- Sharing is explicit: reviewers export a JSON file and send/commit it wherever the team chooses.
-- Import merges another exported JSON file into the current browser.
-
-That keeps ownership with the installing repository/team, not Mockmark.
-
-## Install
+Create a project in the Mockmark dashboard, then run its generated commands inside the chosen repository:
 
 ```bash
 npm install -D mockmark
+npx mockmark init ./mocks \
+  --project mmp_PROJECT_KEY \
+  --convex-url https://DEPLOYMENT.convex.cloud \
+  --app-url https://YOUR-MOCKMARK-APP.example
 ```
 
-Or run without installing:
+This creates `.mockmark.json` and injects one hosted loader into HTML files under `./mocks`. It does not touch HTML elsewhere in the repository.
+
+Create an installation token in the dashboard and authenticate the CLI:
 
 ```bash
-npx mockmark init docs/mockups
-python3 -m http.server 4317 -d docs/mockups
+npx mockmark login mmi_INSTALLATION_TOKEN
+npx mockmark status
 ```
 
-Open `http://localhost:4317` and press **C** to comment.
+Credentials are stored under the current user's config directory, outside the repository, with user-only permissions.
 
-## Add to an existing repo
+## Review flow
+
+1. Admin creates a time-limited review token in the dashboard.
+2. Reviewer opens a configured mock with `?mockmark_token=mmr_...` once, or pastes the token into the Mockmark panel.
+3. Press **C** to pin a point/region, **L** for all conversations, and **H** to hide markers.
+4. Comments, replies, reactions, and resolution state sync to Convex.
+
+The URL token is moved into `sessionStorage` and removed from browser history immediately. Review and installation tokens can be revoked independently.
+
+## Agent feedback
+
+Any agent with terminal access to the repository can read feedback without adopting a Mockmark workflow:
 
 ```bash
-# Copies /mockmark/client.{js,css} into your mocks folder and injects every HTML mock.
-npx mockmark init docs/mockups
-
-# Later, only inject new HTML files.
-npx mockmark inject docs/mockups
+npx mockmark comments
+npx mockmark comments --all
+npx mockmark comments --json
+npx mockmark comments --page localhost:4317/home.html --since 2026-08-01
 ```
 
-Manual opt-in for one page:
+Default output is Markdown containing source context and unresolved human conversation only. JSON output is versioned for automation.
 
-```html
-<link rel="stylesheet" href="./mockmark/client.css">
-<script type="module" src="./mockmark/client.js"></script>
+## Other commands
+
+```bash
+npx mockmark inject ./mocks     # inject newly added HTML files
+npx mockmark open               # print dashboard URL
+npx mockmark uninstall ./mocks  # remove loaders; hosted feedback remains
 ```
 
-## Reviewer shortcuts
+## Development
 
-- **C**: toggle comment mode
-- Click: point comment
-- Drag: region comment
-- **L**: all comments
-- **H**: hide/show markers
-- Export/Import buttons: move comments by explicit JSON file handoff
+Requirements: Node.js 20.19+.
 
-## Data portability
-
-Exported files use this shape:
-
-```json
-{
-  "version": 1,
-  "exportedAt": 1785560000000,
-  "threads": [],
-  "messages": [],
-  "reactions": []
-}
+```bash
+npm install
+CONVEX_AGENT_MODE=anonymous npx convex dev --once
+npm run auth:configure
+npm run dev
 ```
 
-Teams can keep those files private, attach them to issues, or commit them to their own repo. Mockmark does not prescribe or host the workflow.
+Quality gates:
 
-## Why
+```bash
+npm run check
+npm run build
+npm run pack:check
+```
 
-This started as a repo-local mock annotation tool and was extracted into a standalone open-source project so static mockups in any repository can collect review comments without adopting a design platform or sending review data to a third party.
+Production requires the Convex project, Convex Auth JWT keys, and a static host for `dist-web`. Set `VITE_CONVEX_URL` during the web build. Deploy backend with `npx convex deploy`; deploy `dist-web` with the chosen personal hosting account.
+
+See [docs/saas-build-plan.md](docs/saas-build-plan.md) and [docs/operations.md](docs/operations.md).
+
+## Security boundary
+
+- Every stored entity is project/organization scoped.
+- Dashboard operations require authenticated membership and role checks.
+- Embedded review and CLI operations require hashed, revocable, project-scoped tokens.
+- No organization credential is committed to client repositories.
+- Browser-delivered code is inspectable. Authorization, persistence, tenancy, and audit logic remain server-side.
+
+## License
+
+Proprietary. All rights reserved. Client use requires a separate agreement.

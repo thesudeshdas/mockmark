@@ -1,20 +1,67 @@
 {
   "name": "mockmark",
-  "version": "0.2.0",
-  "description": "Backendless, private comments and annotations for static HTML mocks.",
+  "version": "1.0.0",
+  "description": "Repo-scoped annotation and conversation layer for HTML mocks.",
   "type": "module",
-  "bin": { "mockmark": "./bin/mockmark.js" },
+  "bin": {
+    "mockmark": "./bin/mockmark.js"
+  },
   "exports": {
-    "./client": "./public/mockmark/client.js",
-    "./client.css": "./public/mockmark/client.css"
+    "./config": "./src/config.js"
   },
-  "files": ["bin", "src", "public", "README.md", "LICENSE"],
+  "files": [
+    "bin",
+    "src/config.js",
+    "src/html.js",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "test": "node --test tests/*.test.js",
-    "check": "node --check bin/mockmark.js && node --check src/rules.js"
+    "dev": "concurrently -k \"npm:dev:backend\" \"npm:dev:web\"",
+    "dev:backend": "convex dev",
+    "dev:web": "vite",
+    "build": "npm run build:web && npm run build:embed",
+    "build:web": "vite build",
+    "build:embed": "esbuild src/embed/index.ts --bundle --minify --format=iife --target=es2020 --outfile=dist-web/embed.js",
+    "check": "npm run typecheck && npm run test",
+    "typecheck": "tsc --noEmit && tsc -p convex/tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.js && vitest run",
+    "pack:check": "npm pack --dry-run",
+    "auth:configure": "node scripts/configure-auth.mjs",
+    "start": "vite --host 0.0.0.0"
   },
-  "keywords": ["mockups", "annotations", "comments", "design-review", "static-site", "privacy"],
+  "keywords": [
+    "mockups",
+    "annotations",
+    "comments",
+    "design-review",
+    "ai-agents"
+  ],
   "author": "Sudesh Das",
-  "license": "MIT",
-  "engines": { "node": ">=18" }
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "dependencies": {
+    "convex": "1.43.0"
+  },
+  "devDependencies": {
+    "@auth/core": "0.41.3",
+    "@convex-dev/auth": "0.0.95",
+    "@edge-runtime/vm": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "6.0.5",
+    "concurrently": "^9.2.1",
+    "convex-test": "^0.0.55",
+    "esbuild": "0.28.2",
+    "happy-dom": "20.11.2",
+    "jose": "^5.10.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "typescript": "7.0.2",
+    "vite": "8.2.1",
+    "vitest": "4.1.10"
+  }
 }

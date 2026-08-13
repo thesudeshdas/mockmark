@@ -1,65 +1,152 @@
 #!/usr/bin/env node
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, extname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, resolve } from "node:path";
+import { ConvexHttpClient } from "convex/browser";
+import { makeFunctionReference } from "convex/server";
+import { findHtml, injectHtml, removeInjection } from "../src/html.js";
+import { loadConfig, saveConfig, validateProjectKey, validateUrl } from "../src/config.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, "..");
-const assetsDir = join(root, "public", "mockmark");
 const args = process.argv.slice(2);
-const command = args[0] || "help";
+const command = args.shift() ?? "help";
+const flags = parseArgs(args);
 
 function usage() {
-  console.log(`mockmark\n\nBackendless mock comments. No hosted service. No database. No tracking.\n\nCommands:\n  mockmark init [mock-dir]          Copy client assets and inject HTML files\n  mockmark inject [mock-dir]        Inject client tags only\n\nPreview with any static server, for example:\n  python3 -m http.server 4317 -d docs/mockups\n\nHTML can also opt in manually:\n  <link rel="stylesheet" href="/mockmark/client.css">\n  <script type="module" src="/mockmark/client.js"></script>`);
+  console.log(`mockmark — repo-scoped mock feedback
+
+Commands:
+  mockmark init [mock-dir] --project KEY --convex-url URL --app-url URL
+  mockmark inject [mock-dir]
+  mockmark login TOKEN
+  mockmark status
+  mockmark comments [--all] [--page PAGE_KEY] [--json] [--since ISO_DATE]
+  mockmark open
+  mockmark uninstall [mock-dir]
+
+Install and config affect only current repository. Credentials stay outside repo.`);
 }
-function positional(index, fallback) { return args[index] ?? fallback; }
-function walkHtml(dir) {
-  const out=[];
-  if (!existsSync(dir)) return out;
-  for (const entry of readdirSync(dir)) {
-    const p=join(dir,entry); const s=statSync(p);
-    if (s.isDirectory()) out.push(...walkHtml(p));
-    else if (extname(p).toLowerCase()==='.html') out.push(p);
-  }
-  return out;
-}
-function relAssetPath(htmlFile, mockDir, asset) {
-  const from = dirname(htmlFile);
-  const target = join(mockDir, "mockmark", asset);
-  let rel = relative(from, target).replaceAll("\\", "/");
-  if (!rel.startsWith(".")) rel = `./${rel}`;
-  return rel;
-}
-function injectFile(file, mockDir) {
-  let html = readFileSync(file, 'utf8');
-  if (html.includes('mockmark/client.js')) return false;
-  const css = `<link rel="stylesheet" href="${relAssetPath(file, mockDir, 'client.css')}">`;
-  const js = `<script type="module" src="${relAssetPath(file, mockDir, 'client.js')}"></script>`;
-  if (/<\/head>/i.test(html)) html = html.replace(/<\/head>/i, `  ${css}\n</head>`);
-  else html = `${css}\n${html}`;
-  if (/<\/body>/i.test(html)) html = html.replace(/<\/body>/i, `  ${js}\n</body>`);
-  else html = `${html}\n${js}\n`;
-  writeFileSync(file, html);
-  return true;
-}
-function copyAssets(mockDir) {
-  const dest = join(mockDir, 'mockmark'); mkdirSync(dest, {recursive:true});
-  for (const name of ['client.js','client.css']) copyFileSync(join(assetsDir, name), join(dest, name));
-}
+
 async function main() {
-  if (["help","--help","-h"].includes(command)) return usage();
-  const mockDir = resolve(positional(1, 'mocks'));
-  if (command === 'init') {
-    mkdirSync(mockDir, {recursive:true}); copyAssets(mockDir);
-    const changed = walkHtml(mockDir).filter(f => !f.includes('/mockmark/')).map(f => injectFile(f, mockDir)).filter(Boolean).length;
-    console.log(`Mockmark initialized in ${mockDir}; injected ${changed} HTML file(s).`);
-    console.log(`Serve statically with: python3 -m http.server 4317 -d ${mockDir}`);
-    return;
-  }
-  if (command === 'inject') {
-    const changed = walkHtml(mockDir).filter(f => !f.includes('/mockmark/')).map(f => injectFile(f, mockDir)).filter(Boolean).length;
-    console.log(`Injected ${changed} HTML file(s).`); return;
-  }
-  console.error(`Unknown command: ${command}`); usage(); process.exit(1);
+  if (["help", "--help", "-h"].includes(command)) return usage();
+  if (command === "init") return init();
+  if (command === "inject") return inject();
+  if (command === "login") return login();
+  if (command === "status") return status();
+  if (command === "comments") return comments();
+  if (command === "open") return openDashboard();
+  if (command === "uninstall") return uninstall();
+  throw new Error(`Unknown command: ${command}`);
 }
-main().catch((err)=>{ console.error(err.stack || err.message); process.exit(1); });
+
+function init() {
+  const mockDir = resolve(flags._[0] ?? "mocks");
+  const projectKey = validateProjectKey(required("project"));
+  const convexUrl = validateUrl(required("convex-url"), "Convex URL");
+  const appUrl = validateUrl(required("app-url"), "App URL");
+  const config = { version: 1, projectKey, convexUrl, appUrl, mockDir: relativeFromCwd(mockDir) };
+  saveConfig(process.cwd(), config);
+  ensureIgnore();
+  const changed = injectDirectory(mockDir, config);
+  console.log(`Mockmark linked to this repository; injected ${changed} HTML file(s) in ${mockDir}.`);
+  console.log(`Next: npx mockmark login <installation-token>`);
+}
+
+function inject() {
+  const config = loadConfig(process.cwd());
+  const mockDir = resolve(flags._[0] ?? config.mockDir);
+  const changed = injectDirectory(mockDir, config);
+  console.log(`Injected ${changed} HTML file(s).`);
+}
+
+async function login() {
+  const config = loadConfig(process.cwd());
+  const token = String(flags._[0] ?? "").trim();
+  if (!token.startsWith("mmi_")) throw new Error("Use an installation token beginning with mmi_.");
+  await readFeedback(config, token, { unresolvedOnly: true });
+  saveCredential(config.projectKey, token);
+  console.log(`Authenticated project ${config.projectKey}. Token stored outside repository with user-only permissions.`);
+}
+
+async function status() {
+  const config = loadConfig(process.cwd());
+  const token = loadCredential(config.projectKey);
+  const data = await readFeedback(config, token, { unresolvedOnly: true });
+  console.log(`Connected: ${data.project.name}`);
+  console.log(`Open conversations: ${data.threads.length}`);
+  console.log(`Convex: ${config.convexUrl}`);
+}
+
+async function comments() {
+  const config = loadConfig(process.cwd());
+  const token = loadCredential(config.projectKey);
+  const since = flags.since ? Date.parse(String(flags.since)) : undefined;
+  if (flags.since && !Number.isFinite(since)) throw new Error("--since must be a valid ISO date.");
+  const data = await readFeedback(config, token, { pageKey: stringFlag("page"), unresolvedOnly: !flags.all, updatedSince: since });
+  if (flags.json) return console.log(JSON.stringify({ version: 1, ...data }, null, 2));
+  console.log(formatMarkdown(data));
+}
+
+function openDashboard() {
+  const config = loadConfig(process.cwd());
+  const url = `${config.appUrl}/?project=${encodeURIComponent(config.projectKey)}`;
+  console.log(url);
+}
+
+function uninstall() {
+  const config = loadConfig(process.cwd());
+  const mockDir = resolve(flags._[0] ?? config.mockDir);
+  let changed = 0;
+  for (const file of findHtml(mockDir)) {
+    const html = readFileSync(file, "utf8");
+    const next = removeInjection(html);
+    if (next !== html) { writeFileSync(file, next); changed += 1; }
+  }
+  console.log(`Removed Mockmark loader from ${changed} HTML file(s). Hosted feedback remains intact.`);
+}
+
+function injectDirectory(mockDir, config) {
+  if (!existsSync(mockDir)) throw new Error(`Mock directory not found: ${mockDir}`);
+  let changed = 0;
+  for (const file of findHtml(mockDir)) {
+    const html = readFileSync(file, "utf8");
+    const next = injectHtml(html, config);
+    if (next !== html) { writeFileSync(file, next); changed += 1; }
+  }
+  return changed;
+}
+
+async function readFeedback(config, token, options) {
+  const client = new ConvexHttpClient(config.convexUrl);
+  const ref = makeFunctionReference("publicApi:read");
+  return client.action(ref, { token, projectKey: config.projectKey, ...options });
+}
+
+function formatMarkdown(data) {
+  const out = [`# Mockmark feedback — ${data.project.name}`, "", `Fetched: ${new Date(data.fetchedAt).toISOString()}`, `Conversations: ${data.threads.length}`, ""];
+  for (const [index, thread] of data.threads.entries()) {
+    out.push(`## ${index + 1}. ${thread.resolvedAt ? "[resolved]" : "[open]"} ${thread.page?.path ?? "Unknown page"}`, "");
+    if (thread.nearbyText) out.push(`Context: ${thread.nearbyText}`, "");
+    if (thread.selector) out.push(`DOM: \`${thread.selector}\``, "");
+    if (thread.build?.commitSha) out.push(`Build: \`${thread.build.commitSha}\`${thread.build.branch ? ` (${thread.build.branch})` : ""}`, "");
+    for (const message of thread.messages) out.push(`- **${message.authorName}** (${new Date(message.createdAt).toISOString()}): ${message.body.replace(/\n/g, " ")}`);
+    out.push("");
+  }
+  return out.join("\n");
+}
+
+function credentialPath(projectKey) { return resolve(homedir(), ".config", "mockmark", `${projectKey}.json`); }
+function saveCredential(projectKey, token) { const path = credentialPath(projectKey); mkdirSync(dirname(path), { recursive: true, mode: 0o700 }); writeFileSync(path, JSON.stringify({ token }, null, 2), { mode: 0o600 }); chmodSync(path, 0o600); }
+function loadCredential(projectKey) { const path = credentialPath(projectKey); if (!existsSync(path)) throw new Error("CLI is not authenticated. Run: npx mockmark login <installation-token>"); return JSON.parse(readFileSync(path, "utf8")).token; }
+function ensureIgnore() { const path = resolve(".gitignore"); const current = existsSync(path) ? readFileSync(path, "utf8") : ""; const entries = [".env.local", ".mockmark/"]; let next = current; for (const entry of entries) if (!current.split(/\r?\n/).includes(entry)) next += `${next && !next.endsWith("\n") ? "\n" : ""}${entry}\n`; if (next !== current) writeFileSync(path, next); }
+function required(name) { const value = flags[name]; if (!value || value === true) throw new Error(`--${name} is required.`); return String(value); }
+function stringFlag(name) { const value = flags[name]; return typeof value === "string" ? value : undefined; }
+function relativeFromCwd(path) { const prefix = `${process.cwd()}/`; return path.startsWith(prefix) ? path.slice(prefix.length) : path; }
+function parseArgs(values) { const parsed = { _: [] }; for (let i = 0; i < values.length; i += 1) { const value = values[i]; if (!value.startsWith("--")) { parsed._.push(value); continue; } const [raw, inline] = value.slice(2).split("=", 2); if (inline !== undefined) parsed[raw] = inline; else if (values[i + 1] && !values[i + 1].startsWith("--")) parsed[raw] = values[++i]; else parsed[raw] = true; } return parsed; }
+
+main().catch((error) => { console.error(`Mockmark: ${cleanError(error)}`); process.exitCode = 1; });
+
+function cleanError(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const convex = [...message.matchAll(/(?:Uncaught )?ConvexError:\s*([^\n]+)/g)].at(-1)?.[1];
+  return (convex ?? message.split("\n")[0]).replace(/^Uncaught ConvexError:\s*/, "");
+}

@@ -1,0 +1,686 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  Authenticated,
+  AuthLoading,
+  Unauthenticated,
+  useAction,
+  useMutation,
+  useQuery,
+} from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+
+export function App() {
+  return (
+    <>
+      <AuthLoading>
+        <Centered>Checking session…</Centered>
+      </AuthLoading>
+      <Unauthenticated>
+        <AuthScreen />
+      </Unauthenticated>
+      <Authenticated>
+        <Workspace />
+      </Authenticated>
+    </>
+  );
+}
+
+function AuthScreen() {
+  const { signIn } = useAuthActions();
+  const [flow, setFlow] = useState<"signIn" | "signUp">("signIn");
+  const [error, setError] = useState("");
+  return (
+    <main className="auth-layout">
+      <section className="auth-copy">
+        <Logo />
+        <h1>Feedback lives beside the mock.</h1>
+        <p>
+          Pin, discuss, resolve. Your agents read the same human feedback
+          without Mockmark telling them how to work.
+        </p>
+      </section>
+      <form
+        className="card auth-card"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setError("");
+          try {
+            await signIn("password", new FormData(event.currentTarget));
+          } catch (reason) {
+            setError(errorMessage(reason));
+          }
+        }}
+      >
+        <p className="eyebrow">
+          {flow === "signIn" ? "Welcome back" : "Create workspace"}
+        </p>
+        <h2>{flow === "signIn" ? "Sign in" : "Start with Mockmark"}</h2>
+        {flow === "signUp" ? (
+          <Field label="Your name" name="name" autoComplete="name" required />
+        ) : null}
+        <Field
+          label="Email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+        />
+        <Field
+          label="Password"
+          name="password"
+          type="password"
+          autoComplete={flow === "signIn" ? "current-password" : "new-password"}
+          minLength={12}
+          required
+        />
+        <input type="hidden" name="flow" value={flow} />
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <button className="primary wide" type="submit">
+          {flow === "signIn" ? "Sign in" : "Create account"}
+        </button>
+        <button
+          className="link"
+          type="button"
+          onClick={() => setFlow(flow === "signIn" ? "signUp" : "signIn")}
+        >
+          {flow === "signIn"
+            ? "Need an account? Sign up"
+            : "Already registered? Sign in"}
+        </button>
+      </form>
+    </main>
+  );
+}
+
+function Workspace() {
+  const workspaces = useQuery(api.workspaces.mine);
+  const bootstrap = useMutation(api.workspaces.bootstrap);
+  const { signOut } = useAuthActions();
+  const [selectedOrg, setSelectedOrg] = useState<Id<"organizations"> | null>(
+    null,
+  );
+  const [selectedProject, setSelectedProject] = useState<Id<"projects"> | null>(
+    null,
+  );
+  const acceptInvitation = useMutation(api.workspaces.acceptInvitation);
+  const [inviteStatus, setInviteStatus] = useState("");
+  const inviteHandled = useRef(false);
+  useEffect(() => {
+    const invite = new URL(location.href).searchParams.get("invite");
+    if (!invite || inviteHandled.current) return;
+    inviteHandled.current = true;
+    void sha256(invite)
+      .then((tokenHash) => acceptInvitation({ tokenHash }))
+      .then(() => {
+        const url = new URL(location.href);
+        url.searchParams.delete("invite");
+        history.replaceState(history.state, "", url);
+        setInviteStatus("Invitation accepted.");
+      })
+      .catch((reason) => setInviteStatus(errorMessage(reason)));
+  }, [acceptInvitation]);
+  const activeOrg = selectedOrg ?? workspaces?.[0]?.organization?._id ?? null;
+  const activeRole = workspaces?.find(
+    (item) => item.organization?._id === activeOrg,
+  )?.membership.role;
+  if (workspaces === undefined) return <Centered>Loading workspace…</Centered>;
+  if (!workspaces.length)
+    return (
+      <Setup
+        onCreate={async (name, workspaceName) => {
+          await bootstrap({ name, workspaceName });
+        }}
+      />
+    );
+  return (
+    <div className="shell">
+      <header>
+        <Logo />
+        <nav>
+          {workspaces.map(({ organization }) =>
+            organization ? (
+              <button
+                className={activeOrg === organization._id ? "active" : ""}
+                key={organization._id}
+                onClick={() => {
+                  setSelectedOrg(organization._id);
+                  setSelectedProject(null);
+                }}
+              >
+                {organization.name}
+              </button>
+            ) : null,
+          )}
+        </nav>
+        <button className="quiet" onClick={() => void signOut()}>
+          Sign out
+        </button>
+      </header>
+      <main>
+        {inviteStatus ? (
+          <div className="global-notice">{inviteStatus}</div>
+        ) : null}
+        {activeOrg ? (
+          selectedProject ? (
+            <Project
+              projectId={selectedProject}
+              onBack={() => setSelectedProject(null)}
+            />
+          ) : (
+            <ProjectList
+              organizationId={activeOrg}
+              onSelect={setSelectedProject}
+              canAdmin={activeRole === "owner" || activeRole === "admin"}
+            />
+          )
+        ) : null}
+      </main>
+    </div>
+  );
+}
+
+function Setup({
+  onCreate,
+}: {
+  onCreate: (name: string, workspace: string) => Promise<void>;
+}) {
+  const [error, setError] = useState("");
+  return (
+    <Centered>
+      <form
+        className="card setup"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          const data = new FormData(event.currentTarget);
+          try {
+            await onCreate(
+              String(data.get("name")),
+              String(data.get("workspace")),
+            );
+          } catch (reason) {
+            setError(errorMessage(reason));
+          }
+        }}
+      >
+        <Logo />
+        <h1>Create your workspace</h1>
+        <p>
+          Projects map one-to-one with repositories. Feedback never crosses
+          project boundaries.
+        </p>
+        <Field label="Your name" name="name" required />
+        <Field
+          label="Workspace name"
+          name="workspace"
+          placeholder="Acme Design"
+          required
+        />
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <button className="primary" type="submit">
+          Create workspace
+        </button>
+      </form>
+    </Centered>
+  );
+}
+
+function ProjectList({
+  organizationId,
+  onSelect,
+  canAdmin,
+}: {
+  organizationId: Id<"organizations">;
+  onSelect: (id: Id<"projects">) => void;
+  canAdmin: boolean;
+}) {
+  const projects = useQuery(api.projects.list, { organizationId });
+  const create = useMutation(api.projects.create);
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <section className="page">
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Repositories</p>
+          <h1>Projects</h1>
+          <p>Install Mockmark only where feedback should appear.</p>
+        </div>
+        {canAdmin ? (
+          <button className="primary" onClick={() => setCreating(true)}>
+            New project
+          </button>
+        ) : null}
+      </div>
+      {creating ? (
+        <form
+          className="card inline-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const name = String(new FormData(event.currentTarget).get("name"));
+            try {
+              const id = await create({
+                organizationId,
+                name,
+                projectKey: randomKey("mmp"),
+              });
+              onSelect(id);
+            } catch (reason) {
+              setError(errorMessage(reason));
+            }
+          }}
+        >
+          <Field
+            name="name"
+            label="Project name"
+            placeholder="Web platform"
+            autoFocus
+            required
+          />
+          {error ? <Notice tone="error">{error}</Notice> : null}
+          <div className="actions">
+            <button type="button" onClick={() => setCreating(false)}>
+              Cancel
+            </button>
+            <button className="primary" type="submit">
+              Create
+            </button>
+          </div>
+        </form>
+      ) : null}
+      <div className="project-grid">
+        {projects?.map((project) => (
+          <button
+            className="project-card"
+            key={project._id}
+            onClick={() => onSelect(project._id)}
+          >
+            <span className="project-icon">M</span>
+            <span>
+              <b>{project.name}</b>
+              <small>{project.slug}</small>
+            </span>
+            <span>→</span>
+          </button>
+        ))}
+        {projects?.length === 0 ? (
+          <Empty
+            title="No projects yet"
+            text="Create one, then install Mockmark in that repository."
+          />
+        ) : null}
+      </div>
+      <Team organizationId={organizationId} canAdmin={canAdmin} />
+    </section>
+  );
+}
+
+function Team({
+  organizationId,
+  canAdmin,
+}: {
+  organizationId: Id<"organizations">;
+  canAdmin: boolean;
+}) {
+  const members = useQuery(api.workspaces.members, { organizationId });
+  const invite = useMutation(api.workspaces.invite);
+  const removeMember = useMutation(api.workspaces.removeMember);
+  const [issued, setIssued] = useState("");
+  const [error, setError] = useState("");
+  return (
+    <section className="team-section">
+      <div>
+        <p className="eyebrow">Workspace</p>
+        <h2>Team</h2>
+      </div>
+      <div className="card member-list">
+        {members?.map((member) => (
+          <div key={member._id}>
+            <span>
+              <b>{member.name}</b>
+              <small>{member.email}</small>
+            </span>
+            <span className="member-actions">
+              <span className="role">{member.role}</span>
+              {canAdmin && member.role !== "owner" ? (
+                <button
+                  onClick={() => { if (confirm(`Remove ${member.name} from this workspace?`)) void removeMember({ membershipId: member._id }); }}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </span>
+          </div>
+        ))}
+      </div>
+      {canAdmin ? (
+        <form
+          className="card invite-form"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setError("");
+            const form = event.currentTarget;
+            const data = new FormData(form);
+            const rawToken = randomKey("mmv");
+            try {
+              await invite({
+                organizationId,
+                email: String(data.get("email")),
+                role: String(data.get("role")) as
+                  "admin" | "commenter" | "viewer",
+                tokenHash: await sha256(rawToken),
+              });
+              setIssued(
+                `${location.origin}/?invite=${encodeURIComponent(rawToken)}`,
+              );
+              form.reset();
+            } catch (reason) {
+              setError(errorMessage(reason));
+            }
+          }}
+        >
+          <Field label="Invite by email" name="email" type="email" required />
+          <label className="field">
+            <span>Role</span>
+            <select name="role" defaultValue="commenter">
+              <option value="admin">Admin</option>
+              <option value="commenter">Commenter</option>
+              <option value="viewer">Viewer</option>
+            </select>
+          </label>
+          <button className="primary" type="submit">
+            Create invite link
+          </button>
+          {issued ? (
+            <Notice tone="success">
+              <code>{issued}</code>
+              <button
+                type="button"
+                onClick={() => void navigator.clipboard.writeText(issued)}
+              >
+                Copy
+              </button>
+            </Notice>
+          ) : null}
+          {error ? <Notice tone="error">{error}</Notice> : null}
+        </form>
+      ) : null}
+    </section>
+  );
+}
+
+function Project({
+  projectId,
+  onBack,
+}: {
+  projectId: Id<"projects">;
+  onBack: () => void;
+}) {
+  const detail = useQuery(api.projects.detail, { projectId });
+  const feedback = useQuery(api.publicApi.feedbackForDashboard, {
+    projectId,
+    unresolvedOnly: false,
+  });
+  const createToken = useAction(api.tokens.create);
+  const revokeToken = useMutation(api.tokens.revoke);
+  const deleteThread = useMutation(api.publicApi.deleteThreadForDashboard);
+  const [issued, setIssued] = useState<{ kind: string; token: string } | null>(
+    null,
+  );
+  const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
+  if (!detail || !feedback) return <Centered>Loading project…</Centered>;
+  const canAdmin = detail.role === "owner" || detail.role === "admin";
+  const threads = feedback.threads.filter(
+    (thread) =>
+      filter === "all" ||
+      (filter === "resolved" ? thread.resolvedAt : !thread.resolvedAt),
+  );
+  const install = `npm install -D mockmark\nnpx mockmark init --project ${detail.project.projectKey} --convex-url ${import.meta.env.VITE_CONVEX_URL} --app-url ${location.origin} ./mocks`;
+  return (
+    <section className="page">
+      <button className="back" onClick={onBack}>
+        ← Projects
+      </button>
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Project</p>
+          <h1>{detail.project.name}</h1>
+          <p>
+            {detail.pages.length} pages · {feedback.threads.length}{" "}
+            conversations
+          </p>
+        </div>
+        <div className="actions">
+          <button
+            onClick={() =>
+              downloadJson(`${detail.project.slug}-feedback.json`, {
+                version: 1,
+                project: detail.project,
+                threads: feedback.threads,
+                exportedAt: Date.now(),
+              })
+            }
+          >
+            Export feedback
+          </button>
+          {canAdmin ? (
+            <>
+              <button
+                onClick={async () => {
+                  const result = await createToken({
+                    projectId,
+                    kind: "review",
+                    label: "Review link",
+                    expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000,
+                  });
+                  setIssued({ kind: "Review", token: result.token });
+                }}
+              >
+                Create review token
+              </button>
+              <button
+                className="primary"
+                onClick={async () => {
+                  const result = await createToken({
+                    projectId,
+                    kind: "installation",
+                    label: "CLI installation",
+                  });
+                  setIssued({ kind: "Installation", token: result.token });
+                }}
+              >
+                Create CLI token
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
+      {issued ? (
+        <Notice tone="success">
+          <b>{issued.kind} token—copy now; it will not be shown again.</b>
+          <code>{issued.token}</code>
+          <button
+            onClick={() => void navigator.clipboard.writeText(issued.token)}
+          >
+            Copy
+          </button>
+        </Notice>
+      ) : null}
+      <div className="two-col">
+        <section className="card install">
+          <p className="eyebrow">Install in repository</p>
+          <h2>Repo-scoped setup</h2>
+          <pre>{install}</pre>
+          <button onClick={() => void navigator.clipboard.writeText(install)}>
+            Copy commands
+          </button>
+          <p className="muted">
+            Then authenticate CLI with an installation token:{" "}
+            <code>npx mockmark login TOKEN</code>
+          </p>
+        </section>
+        <section className="card stats">
+          <div>
+            <b>{feedback.threads.filter((t) => !t.resolvedAt).length}</b>
+            <span>Open</span>
+          </div>
+          <div>
+            <b>{feedback.threads.filter((t) => t.resolvedAt).length}</b>
+            <span>Resolved</span>
+          </div>
+          <div>
+            <b>{detail.tokens.filter((t) => !t.revokedAt).length}</b>
+            <span>Access tokens</span>
+          </div>
+        </section>
+      </div>
+      <section className="card token-list">
+        <p className="eyebrow">Access</p>
+        <h2>Project tokens</h2>
+        {detail.tokens.length ? (
+          detail.tokens.map((token) => (
+            <div key={token._id}>
+              <span>
+                <b>{token.label}</b>
+                <small>
+                  {token.kind} · {token.tokenPrefix}…
+                  {token.revokedAt ? " · revoked" : ""}
+                </small>
+              </span>
+              {!token.revokedAt && canAdmin ? (
+                <button
+                  onClick={() => { if (confirm(`Revoke ${token.label}? Existing links using it will stop working.`)) void revokeToken({ tokenId: token._id }); }}
+                >
+                  Revoke
+                </button>
+              ) : null}
+            </div>
+          ))
+        ) : (
+          <p className="muted">No tokens created.</p>
+        )}
+      </section>
+      <div className="feedback-head">
+        <h2>Feedback</h2>
+        <div className="segmented">
+          {(["open", "all", "resolved"] as const).map((item) => (
+            <button
+              className={filter === item ? "active" : ""}
+              onClick={() => setFilter(item)}
+              key={item}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="threads">
+        {threads.map((thread) => (
+          <article className="card thread" key={thread._id}>
+            <div className="thread-top">
+              <span
+                className={`status ${thread.resolvedAt ? "resolved" : "open"}`}
+              >
+                {thread.resolvedAt ? "Resolved" : "Open"}
+              </span>
+              <span>{thread.page?.path}</span>
+              <time>{new Date(thread.updatedAt).toLocaleString()}</time>
+            </div>
+            {thread.messages.map(
+              (message: { _id: string; authorName: string; body: string }) => (
+                <div className="message" key={message._id}>
+                  <b>{message.authorName}</b>
+                  <p>{message.body}</p>
+                </div>
+              ),
+            )}
+            {canAdmin ? (
+              <div className="thread-admin">
+                <button
+                  onClick={() => { if (confirm("Delete this conversation? This removes it from active review views.")) void deleteThread({ threadId: thread._id }); }}
+                >
+                  Delete conversation
+                </button>
+              </div>
+            ) : null}
+          </article>
+        ))}
+        {threads.length === 0 ? (
+          <Empty
+            title="No matching feedback"
+            text="Open a configured mock and press C to add the first comment."
+          />
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function Field(
+  props: React.InputHTMLAttributes<HTMLInputElement> & { label: string },
+) {
+  const { label, ...input } = props;
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input {...input} />
+    </label>
+  );
+}
+function Logo() {
+  return (
+    <div className="logo">
+      <span>M</span>
+      <b>Mockmark</b>
+    </div>
+  );
+}
+function Centered({ children }: { children: React.ReactNode }) {
+  return <main className="centered">{children}</main>;
+}
+function Notice({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone: "error" | "success";
+}) {
+  return <div className={`notice ${tone}`}>{children}</div>;
+}
+function Empty({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="empty">
+      <b>{title}</b>
+      <p>{text}</p>
+    </div>
+  );
+}
+function randomKey(prefix: string) {
+  const bytes = crypto.getRandomValues(new Uint8Array(18));
+  return `${prefix}_${Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+}
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
+}
+function downloadJson(name: string, value: unknown) {
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+function errorMessage(reason: unknown) {
+  if (!(reason instanceof Error)) return "Something went wrong.";
+  const convex = [...reason.message.matchAll(/(?:Uncaught )?ConvexError:\s*([^\n]+)/g)].at(-1)?.[1];
+  return (convex ?? reason.message.split("\n")[0]).replace(/^Uncaught ConvexError:\s*/, "");
+}
