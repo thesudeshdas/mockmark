@@ -1,5 +1,6 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
+import { shouldMountMockmark } from "./mount";
 
 type Config = {
   projectKey: string;
@@ -534,6 +535,12 @@ function formatDate(value: number) {
   }).format(value);
 }
 function messageOf(reason: unknown) {
+  if (
+    reason &&
+    typeof reason === "object" &&
+    typeof (reason as { data?: unknown }).data === "string"
+  )
+    return String((reason as { data: string }).data);
   if (!(reason instanceof Error)) return "Mockmark request failed.";
   const convex = [...reason.message.matchAll(/(?:Uncaught )?ConvexError:\s*([^\n]+)/g)].at(-1)?.[1];
   return (convex ?? reason.message.split("\n")[0]).replace(/^Uncaught ConvexError:\s*/, "");
@@ -542,5 +549,13 @@ function messageOf(reason: unknown) {
 const styles = `:host{font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#24221f}.mm-root{position:absolute;inset:0;pointer-events:none}.mm-root button,.mm-root input,.mm-root textarea{font:inherit}.mm-toolbar{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;gap:5px;padding:6px;background:#25231f;border-radius:13px;box-shadow:0 12px 35px #0004;pointer-events:auto}.mm-toolbar button{border:0;background:transparent;color:#eee7da;padding:9px 11px;border-radius:8px}.mm-toolbar button.on{background:#ee5b35;color:#fff}.mm-toolbar kbd{font-size:10px;opacity:.6;margin-left:5px}.mm-pin,.mm-region{position:absolute;pointer-events:auto;background:#ee5b35;color:#fff;border:2px solid #fff;box-shadow:0 2px 10px #0004;font-weight:800}.mm-pin{width:28px;height:28px;border-radius:50%;transform:translate(-50%,-50%)}.mm-region{background:#ee5b3522;border-color:#ee5b35}.mm-region span{position:absolute;left:-14px;top:-14px;display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#ee5b35;color:#fff}.mm-pin.resolved,.mm-region.resolved{opacity:.45}.mm-draft{position:absolute;border:2px dashed #ee5b35;background:#ee5b3518}.mm-panel{position:fixed;right:20px;top:20px;width:min(390px,calc(100vw - 40px));max-height:calc(100vh - 100px);overflow:auto;background:#fff;border:1px solid #ded8cc;border-radius:16px;padding:22px;box-shadow:0 18px 55px #0003;pointer-events:auto}.mm-panel>b{font-size:18px}.mm-panel>p{font-size:12px;color:#756e63}.mm-x{float:right;border:0;background:transparent;font-size:22px}.mm-panel form{display:grid;gap:10px;margin-top:15px}.mm-panel input,.mm-panel textarea{border:1px solid #d8d1c5;border-radius:9px;padding:10px;outline:none}.mm-panel textarea{min-height:90px;resize:vertical}.mm-panel .primary{border:0;border-radius:9px;padding:11px;background:#ee5b35;color:#fff;font-weight:700}.mm-identity{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mm-list{display:grid}.mm-list>button{display:flex;align-items:start;gap:10px;text-align:left;border:0;border-top:1px solid #eee9df;background:#fff;padding:13px 0}.mm-list>button>span{display:grid;place-items:center;min-width:25px;height:25px;border-radius:50%;background:#ee5b35;color:#fff}.mm-list>button div{display:grid;gap:4px}.mm-list small{color:#756e63}.mm-messages article{border-top:1px solid #eee9df;padding:15px 0}.mm-messages header{display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px}.mm-messages time{color:#756e63}.mm-messages article>div{white-space:pre-wrap;line-height:1.5}.mm-messages footer{display:flex;gap:4px;margin-top:10px}.mm-messages footer button,.mm-actions button{border:1px solid #ded8cc;background:#fff;border-radius:8px;padding:5px 8px}.mm-actions{display:flex;justify-content:end}.mm-toast{position:fixed;left:20px;bottom:20px;background:#9d2f1c;color:#fff;padding:12px 15px;border-radius:10px;pointer-events:auto}.mm-empty{padding:25px;text-align:center;color:#756e63}@media(max-width:600px){.mm-panel{inset:12px 12px auto;width:auto;max-height:calc(100vh - 90px)}.mm-toolbar{bottom:12px}.mm-identity{grid-template-columns:1fr}}`;
 
 const config = configFromScript();
-if (config && !document.querySelector("mockmark-review"))
+if (
+  config &&
+  shouldMountMockmark(
+    location.hostname,
+    location.search,
+    Boolean(sessionStorage.getItem(`mockmark.token.${config.projectKey}`)),
+  ) &&
+  !document.querySelector("mockmark-review")
+)
   new MockmarkEmbed(config);
