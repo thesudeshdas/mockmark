@@ -436,7 +436,7 @@ function Project({
       filter === "all" ||
       (filter === "resolved" ? thread.resolvedAt : !thread.resolvedAt),
   );
-  const install = `npm install -D mockmark\nnpx mockmark init --project ${detail.project.projectKey} --convex-url ${import.meta.env.VITE_CONVEX_URL} --app-url ${location.origin} ./mocks`;
+  const install = `npm install -D @thesudeshdas/mockmark\nnpx mockmark init --project ${detail.project.projectKey} --convex-url ${import.meta.env.VITE_CONVEX_URL} --app-url ${location.origin} ./mocks`;
   return (
     <section className="page">
       <button className="back" onClick={onBack}>

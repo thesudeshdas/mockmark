@@ -1,6 +1,6 @@
 {
-  "name": "mockmark",
-  "version": "1.0.0",
+  "name": "@thesudeshdas/mockmark",
+  "version": "1.0.1",
   "description": "Repo-scoped annotation and conversation layer for HTML mocks.",
   "type": "module",
   "bin": {
@@ -12,6 +12,7 @@
   "files": [
     "bin",
     "src/config.js",
+    "src/errors.js",
     "src/html.js",
     "README.md",
     "LICENSE"
@@ -41,6 +42,9 @@
   ],
   "author": "Sudesh Das",
   "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20.19"
   },

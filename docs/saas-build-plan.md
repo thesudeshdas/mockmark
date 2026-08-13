@@ -12,7 +12,7 @@ Payments are outside this scope.
 2. Developer installs Mockmark only in the chosen repository:
 
    ```bash
-   npm install -D mockmark
+   npm install -D @thesudeshdas/mockmark
    npx mockmark init
    ```
 
@@ -26,7 +26,7 @@ Payments are outside this scope.
 
 ### 1. Repository integration
 
-- Replace copied client assets with the `mockmark` package and CLI.
+- Replace copied client assets with the `@thesudeshdas/mockmark` package and `mockmark` CLI.
 - `init`, `login`, `status`, `comments`, `open`, and `uninstall` commands.
 - Framework-neutral browser bootstrap plus adapters for common Vite/Next.js setups.
 - Dev/preview-only guard so Mockmark cannot accidentally ship into production.

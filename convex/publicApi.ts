@@ -71,11 +71,13 @@ export const read = action({
   },
   handler: async (ctx, args): Promise<unknown> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runMutation(internal.publicApi.readWithToken, {
-      ...args,
-      tokenHash,
-      requiredKind: "installation",
-    });
+    return exposePublicErrors(() =>
+      ctx.runMutation(internal.publicApi.readWithToken, {
+        ...args,
+        tokenHash,
+        requiredKind: "installation",
+      }),
+    );
   },
 });
 
@@ -89,11 +91,13 @@ export const readReview = action({
   },
   handler: async (ctx, args): Promise<unknown> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runMutation(internal.publicApi.readWithToken, {
-      ...args,
-      tokenHash,
-      requiredKind: "review",
-    });
+    return exposePublicErrors(() =>
+      ctx.runMutation(internal.publicApi.readWithToken, {
+        ...args,
+        tokenHash,
+        requiredKind: "review",
+      }),
+    );
   },
 });
 
@@ -169,10 +173,12 @@ export const createThread = action({
   },
   handler: async (ctx, args): Promise<string> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runMutation(internal.publicApi.createThreadWithToken, {
-      ...args,
-      tokenHash,
-    });
+    return exposePublicErrors(() =>
+      ctx.runMutation(internal.publicApi.createThreadWithToken, {
+        ...args,
+        tokenHash,
+      }),
+    );
   },
 });
 
@@ -322,10 +328,12 @@ export const reply = action({
   },
   handler: async (ctx, args): Promise<string> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runMutation(internal.publicApi.replyWithToken, {
-      ...args,
-      tokenHash,
-    });
+    return exposePublicErrors(() =>
+      ctx.runMutation(internal.publicApi.replyWithToken, {
+        ...args,
+        tokenHash,
+      }),
+    );
   },
 });
 
@@ -407,10 +415,12 @@ export const setResolved = action({
   },
   handler: async (ctx, args): Promise<void> => {
     const tokenHash = await hashToken(args.token);
-    await ctx.runMutation(internal.publicApi.setResolvedWithToken, {
-      ...args,
-      tokenHash,
-    });
+    await exposePublicErrors(() =>
+      ctx.runMutation(internal.publicApi.setResolvedWithToken, {
+        ...args,
+        tokenHash,
+      }),
+    );
   },
 });
 
@@ -464,10 +474,12 @@ export const toggleReaction = action({
   },
   handler: async (ctx, args): Promise<boolean> => {
     const tokenHash = await hashToken(args.token);
-    return ctx.runMutation(internal.publicApi.toggleReactionWithToken, {
-      ...args,
-      tokenHash,
-    });
+    return exposePublicErrors(() =>
+      ctx.runMutation(internal.publicApi.toggleReactionWithToken, {
+        ...args,
+        tokenHash,
+      }),
+    );
   },
 });
 
@@ -597,6 +609,40 @@ async function rememberIdempotentResult(
 function validateRequestId(requestId: string) {
   if (!/^[A-Za-z0-9._:-]{16,128}$/.test(requestId))
     throw new ConvexError("Invalid request identifier.");
+}
+
+const safePublicErrors = [
+  /^Review access is invalid or expired\.$/,
+  /^Too many requests\. Try again shortly\.$/,
+  /^(Thread|Message) not found\.$/,
+  /^Thread is resolved\.$/,
+  /^(Author name|Comment) must be /,
+  /^(Position|Region size) must be /,
+  /^Region width and height must be paired\.$/,
+  /^Enter a valid email address\.$/,
+  /^Unsupported reaction\.$/,
+  /^Invalid request identifier\.$/,
+];
+
+async function exposePublicErrors<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const raw =
+      typeof (error as { data?: unknown })?.data === "string"
+        ? String((error as { data: string }).data)
+        : error instanceof Error
+          ? error.message
+          : "";
+    const matches = [...raw.matchAll(/ConvexError:\s*([^\n]+)/g)];
+    const nested = matches[matches.length - 1]?.[1];
+    const message = (nested ?? raw).trim();
+    throw new ConvexError(
+      safePublicErrors.some((pattern) => pattern.test(message))
+        ? message
+        : "Request could not be completed.",
+    );
+  }
 }
 
 async function hydrateProject(

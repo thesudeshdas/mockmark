@@ -9,7 +9,7 @@ Mockmark does not design, suggest fixes, change code, or prescribe workflow.
 Create a project in the Mockmark dashboard, then run its generated commands inside the chosen repository:
 
 ```bash
-npm install -D mockmark
+npm install -D @thesudeshdas/mockmark
 npx mockmark init ./mocks \
   --project mmp_PROJECT_KEY \
   --convex-url https://DEPLOYMENT.convex.cloud \

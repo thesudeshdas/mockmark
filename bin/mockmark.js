@@ -6,6 +6,7 @@ import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { findHtml, injectHtml, removeInjection } from "../src/html.js";
 import { loadConfig, saveConfig, validateProjectKey, validateUrl } from "../src/config.js";
+import { cleanError } from "../src/errors.js";
 
 const args = process.argv.slice(2);
 const command = args.shift() ?? "help";
@@ -144,9 +145,3 @@ function relativeFromCwd(path) { const prefix = `${process.cwd()}/`; return path
 function parseArgs(values) { const parsed = { _: [] }; for (let i = 0; i < values.length; i += 1) { const value = values[i]; if (!value.startsWith("--")) { parsed._.push(value); continue; } const [raw, inline] = value.slice(2).split("=", 2); if (inline !== undefined) parsed[raw] = inline; else if (values[i + 1] && !values[i + 1].startsWith("--")) parsed[raw] = values[++i]; else parsed[raw] = true; } return parsed; }
 
 main().catch((error) => { console.error(`Mockmark: ${cleanError(error)}`); process.exitCode = 1; });
-
-function cleanError(error) {
-  const message = error instanceof Error ? error.message : String(error);
-  const convex = [...message.matchAll(/(?:Uncaught )?ConvexError:\s*([^\n]+)/g)].at(-1)?.[1];
-  return (convex ?? message.split("\n")[0]).replace(/^Uncaught ConvexError:\s*/, "");
-}
