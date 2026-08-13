@@ -27,6 +27,7 @@
     "typecheck": "tsc --noEmit && tsc -p convex/tsconfig.json --noEmit",
     "test": "node --test tests/*.test.js && vitest run",
     "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm run check",
     "auth:configure": "node scripts/configure-auth.mjs",
     "auth:configure:prod": "node scripts/configure-auth.mjs --prod",
     "start": "vite --host 0.0.0.0"
