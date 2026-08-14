@@ -10,13 +10,41 @@ Create a project in the Mockmark dashboard, then run its generated commands insi
 
 ```bash
 npm install -D @thesudeshdas/mockmark
-npx mockmark init ./mocks \
+npx mockmark init \
   --project mmp_PROJECT_KEY \
   --convex-url https://DEPLOYMENT.convex.cloud \
   --app-url https://YOUR-MOCKMARK-APP.example
 ```
 
-This creates `.mockmark.json` and injects one hosted loader into HTML files under `./mocks`. It does not touch HTML elsewhere in the repository.
+`init` always creates `./mocks` when missing. Before configuration, it scans the
+repository for conservatively named mock, mockup, prototype, and wireframe files
+or directories. Dependencies, VCS metadata, build output, generated files, and
+the destination directory are excluded.
+
+When existing mocks are found, Mockmark prints every proposed move and reference
+update, then waits for confirmation. Files retain their repository-relative
+structure under `./mocks`; tracked files use `git mv` when available. Relative
+imports and links, root-relative references, scripts, and config strings are
+updated when they can be resolved safely.
+
+No collision is overwritten. Resolve every reported destination collision and
+rerun `init`. Migration writes a local transaction under `.mockmark/`, rolls back
+automatically on failure, and recovers incomplete transactions on the next run.
+Repeat runs make no further moves or duplicate loader injection.
+
+You can run bare `npx mockmark init` before creating a hosted project. It prepares
+the mock folder and migration only; rerun with all three project flags to link
+the repository and inject the loader.
+
+For CI or scripted onboarding, review first, then confirm explicitly:
+
+```bash
+npx mockmark init --dry-run --project mmp_PROJECT_KEY --convex-url https://DEPLOYMENT.convex.cloud --app-url https://YOUR-MOCKMARK-APP.example
+npx mockmark init --yes --project mmp_PROJECT_KEY --convex-url https://DEPLOYMENT.convex.cloud --app-url https://YOUR-MOCKMARK-APP.example
+```
+
+Pass a directory only to override the default destination, for example
+`npx mockmark init ./review-mocks ...`.
 
 Create an installation token in the dashboard and authenticate the CLI:
 

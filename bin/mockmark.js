@@ -7,6 +7,15 @@ import { makeFunctionReference } from "convex/server";
 import { findHtml, injectHtml, removeInjection } from "../src/html.js";
 import { loadConfig, saveConfig, validateProjectKey, validateUrl } from "../src/config.js";
 import { cleanError } from "../src/errors.js";
+import {
+  applyMigration,
+  confirmMigration,
+  createMigrationPlan,
+  discoverMocks,
+  ensureMockDirectory,
+  formatMigrationPlan,
+  recoverIncompleteMigration,
+} from "../src/onboarding.js";
 
 const args = process.argv.slice(2);
 const command = args.shift() ?? "help";
@@ -16,7 +25,7 @@ function usage() {
   console.log(`mockmark — repo-scoped mock feedback
 
 Commands:
-  mockmark init [mock-dir] --project KEY --convex-url URL --app-url URL
+  mockmark init [mock-dir] [--project KEY --convex-url URL --app-url URL] [--dry-run] [--yes]
   mockmark inject [mock-dir]
   mockmark login TOKEN
   mockmark status
@@ -39,11 +48,33 @@ async function main() {
   throw new Error(`Unknown command: ${command}`);
 }
 
-function init() {
+async function init() {
   const mockDir = resolve(flags._[0] ?? "mocks");
-  const projectKey = validateProjectKey(required("project"));
-  const convexUrl = validateUrl(required("convex-url"), "Convex URL");
-  const appUrl = validateUrl(required("app-url"), "App URL");
+  const linking = ["project", "convex-url", "app-url"].some((name) => flags[name] !== undefined);
+  const projectKey = linking ? validateProjectKey(required("project")) : undefined;
+  const convexUrl = linking ? validateUrl(required("convex-url"), "Convex URL") : undefined;
+  const appUrl = linking ? validateUrl(required("app-url"), "App URL") : undefined;
+  const recovered = recoverIncompleteMigration(process.cwd());
+  if (recovered) console.log(`Recovered ${recovered} incomplete migration(s).`);
+  ensureMockDirectory(process.cwd(), relativeFromCwd(mockDir));
+  const candidates = discoverMocks(process.cwd(), mockDir);
+  const plan = createMigrationPlan(process.cwd(), candidates, mockDir);
+  console.log(formatMigrationPlan(plan));
+  if (plan.collisions.length) throw new Error("Resolve migration collisions, then run init again.");
+  if (flags["dry-run"]) return;
+  if (plan.moves.length) {
+    const confirmed = await confirmMigration(plan, { yes: Boolean(flags.yes) });
+    if (!confirmed) {
+      console.log("Migration cancelled; no files moved.");
+      return;
+    }
+    const result = applyMigration(process.cwd(), plan);
+    console.log(`Migrated ${result.moved} file(s); updated ${result.updated} referencing file(s).`);
+  }
+  if (!linking) {
+    console.log(`Mock folder ready at ${mockDir}. Add project flags to link and inject Mockmark.`);
+    return;
+  }
   const config = { version: 1, projectKey, convexUrl, appUrl, mockDir: relativeFromCwd(mockDir) };
   saveConfig(process.cwd(), config);
   ensureIgnore();

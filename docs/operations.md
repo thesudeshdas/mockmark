@@ -33,11 +33,12 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 
 1. Owner signs up and creates workspace/project.
 2. Owner generates CLI installation token.
-3. Run dashboard-generated install commands inside target repository.
-4. Run `npx mockmark login TOKEN` and `npx mockmark status`.
-5. Authorize the deployed mock origin, assign a project commenter, then sign in from the mock.
-6. Create, reply, react, resolve, and confirm CLI receives feedback.
-7. Confirm a second repository without `.mockmark.json` remains unchanged.
+3. Run dashboard-generated `mockmark init` command inside target repository.
+4. Review discovered moves and reference updates. Resolve collisions; confirm only after the plan is correct. For automation, run `--dry-run` before `--yes`.
+5. Run `npx mockmark login TOKEN` and `npx mockmark status`.
+6. Authorize the deployed mock origin, assign a project commenter, then sign in from the mock.
+7. Create, reply, react, resolve, and confirm CLI receives feedback.
+8. Confirm a second repository without `.mockmark.json` remains unchanged.
 
 ## Incident controls
 
