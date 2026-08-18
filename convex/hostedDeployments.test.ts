@@ -72,6 +72,17 @@ describe("hosted mock deployments", () => {
     await expect(t.withIdentity({ subject: outsiderId }).action(api.previewSessions.createForDeployment, { deploymentKey: "mmb_hosted" })).rejects.toThrow(/project not found/i);
   });
 
+  test("deployment listings expose reviewable pages but not supporting asset manifests", async () => {
+    const t = convexTest(schema, modules);
+    const { ownerId, projectId } = await seed(t);
+    const result = await t.withIdentity({ subject: ownerId }).query(api.deployments.list, { projectId });
+
+    expect(result[0]).toMatchObject({ pageCount: 1, primaryHtmlPath: "index.html" });
+    expect(result[0]).not.toHaveProperty("manifest");
+    expect(result[0]).not.toHaveProperty("htmlPaths");
+    expect(result[0]).not.toHaveProperty("fileCount");
+  });
+
   test("browses deployment-root files and includes zero-comment HTML pages", async () => {
     const t = convexTest(schema, modules);
     const { ownerId, projectId, deploymentId } = await seed(t);
@@ -110,12 +121,7 @@ describe("hosted mock deployments", () => {
         });
     });
     const result = await t.withIdentity({ subject: ownerId }).query(api.deployments.browse, { deploymentId });
-    expect(result.files.map((file) => file.path)).toEqual([
-      "today/index.html",
-      "today/states/empty.html",
-      "today/assets/app.css",
-      "shared/logo.svg",
-    ]);
+    expect(result.files.map((file) => file.path)).toEqual(["today/index.html", "today/states/empty.html"]);
     expect(result.files[0]).toMatchObject({ conversations: 2, open: 1, resolved: 1 });
     expect(result.files[1]).toMatchObject({ conversations: 0, open: 0, resolved: 0 });
     expect(result.files[1]).not.toHaveProperty("pageId");
