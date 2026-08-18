@@ -10,8 +10,11 @@ describe("hosted response runtime", () => {
   });
 
   test("keeps hosted documents in an opaque-origin sandbox", () => {
-    const csp = hostedSecurityHeaders("text/html")["content-security-policy"];
+    const headers = hostedSecurityHeaders("text/html");
+    const csp = headers["content-security-policy"];
     expect(csp).toContain("sandbox allow-scripts");
     expect(csp).not.toContain("allow-same-origin");
+    expect(csp).toContain("frame-ancestors https://mockmark.vercel.app");
+    expect(headers).not.toHaveProperty("x-frame-options");
   });
 });
