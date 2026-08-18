@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as deployments from "../deployments.js";
 import type * as http from "../http.js";
 import type * as lib_authz from "../lib/authz.js";
+import type * as lib_hostedRuntime from "../lib/hostedRuntime.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_validation from "../lib/validation.js";
@@ -33,6 +34,7 @@ declare const fullApi: ApiFromModules<{
   deployments: typeof deployments;
   http: typeof http;
   "lib/authz": typeof lib_authz;
+  "lib/hostedRuntime": typeof lib_hostedRuntime;
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/tokens": typeof lib_tokens;
   "lib/validation": typeof lib_validation;

@@ -1,0 +1,29 @@
+export function hostedPageIdentity(deploymentKey: string, path: string) {
+  return `hosted:${deploymentKey}:${path}`.slice(0, 240);
+}
+
+export function hostedBootstrap(
+  token: string,
+  deploymentKey: string,
+  path: string,
+  baseHref: string,
+) {
+  const pageKey = hostedPageIdentity(deploymentKey, path);
+  return `<base href="${baseHref}"><script>window.__MOCKMARK_HOSTED_TOKEN__=${scriptJson(token)};window.__MOCKMARK_HOSTED_PAGE_KEY__=${scriptJson(pageKey)};</script>`;
+}
+
+export function hostedSecurityHeaders(contentType: string) {
+  return {
+    "content-type": contentType,
+    "cache-control": "private, no-store",
+    "referrer-policy": "no-referrer",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "access-control-allow-origin": "*",
+    "content-security-policy": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads allow-top-navigation-by-user-activation",
+  };
+}
+
+function scriptJson(value: string) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}

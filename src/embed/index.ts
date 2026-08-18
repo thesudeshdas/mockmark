@@ -1,6 +1,12 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { shouldMountMockmark } from "./mount";
+import {
+  clearSessionToken,
+  pageIdentity,
+  readSessionToken,
+  writeSessionToken,
+} from "./runtime";
 
 type Config = {
   projectKey: string;
@@ -36,6 +42,7 @@ declare global {
   interface Window {
     MockmarkConfig?: Partial<Config>;
     __MOCKMARK_HOSTED_TOKEN__?: string;
+    __MOCKMARK_HOSTED_PAGE_KEY__?: string;
   }
 }
 
@@ -88,13 +95,7 @@ class MockmarkEmbed {
 
   private captureSession() {
     this.token = window.__MOCKMARK_HOSTED_TOKEN__ ?? "";
-    if (!this.token) {
-      try {
-        this.token = sessionStorage.getItem(`mockmark.token.${this.config.projectKey}`) ?? "";
-      } catch {
-        this.token = "";
-      }
-    }
+    if (!this.token) this.token = readSessionToken(this.config.projectKey);
   }
 
   private bindAuthorization() {
@@ -110,13 +111,17 @@ class MockmarkEmbed {
       )
         return;
       this.token = event.data.token;
-      try { sessionStorage.setItem(`mockmark.token.${this.config.projectKey}`, this.token); } catch {}
+      writeSessionToken(this.config.projectKey, this.token);
       void this.refresh();
     });
   }
 
   private pageKey() {
-    return `${location.host}${location.pathname}`.slice(0, 240);
+    return pageIdentity(
+      location.host,
+      location.pathname,
+      window.__MOCKMARK_HOSTED_PAGE_KEY__,
+    );
   }
   private pageSize() {
     const doc = document.documentElement;
@@ -143,7 +148,7 @@ class MockmarkEmbed {
         this.activeId = null;
         this.listOpen = false;
         this.draft = null;
-        try { sessionStorage.removeItem(`mockmark.token.${this.config.projectKey}`); } catch {}
+        clearSessionToken(this.config.projectKey);
         this.render();
       }
     }
@@ -537,7 +542,9 @@ if (
   shouldMountMockmark(
     location.hostname,
     location.search,
-    Boolean(sessionStorage.getItem(`mockmark.token.${config.projectKey}`)),
+    Boolean(
+      window.__MOCKMARK_HOSTED_TOKEN__ || readSessionToken(config.projectKey),
+    ),
   ) &&
   !document.querySelector("mockmark-review")
 )

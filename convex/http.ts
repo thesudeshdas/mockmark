@@ -3,6 +3,7 @@ import { auth } from "./auth";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hashToken } from "./lib/tokens";
+import { hostedBootstrap, hostedSecurityHeaders } from "./lib/hostedRuntime";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
@@ -45,7 +46,7 @@ http.route({
       const root = `/hosted/${encodeURIComponent(token)}/${encodeURIComponent(deploymentKey)}/`;
       const directory = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
       const html = (await blob.text()).replace(/((?:src|href|action)=["'])\/(?!\/)/gi, `$1${root}`);
-      const bootstrap = `<base href="${root}${directory}"><script>window.__MOCKMARK_HOSTED_TOKEN__=${JSON.stringify(token)};</script>`;
+      const bootstrap = hostedBootstrap(token, deploymentKey, path, `${root}${directory}`);
       const hydrated = /<head([^>]*)>/i.test(html)
         ? html.replace(/<head([^>]*)>/i, `<head$1>${bootstrap}`)
         : `${bootstrap}${html}`;
@@ -56,24 +57,12 @@ http.route({
       const css = (await blob.text()).replace(/url\((['"]?)\/(?!\/)/gi, `url($1${root}`);
       return response(css, 200, asset.contentType);
     }
-    return new Response(blob, { status: 200, headers: secureHeaders(asset.contentType) });
+    return new Response(blob, { status: 200, headers: hostedSecurityHeaders(asset.contentType) });
   }),
 });
 
 function response(body: BodyInit, status: number, contentType: string) {
-  return new Response(body, { status, headers: secureHeaders(contentType) });
-}
-
-function secureHeaders(contentType: string) {
-  return {
-    "content-type": contentType,
-    "cache-control": "private, no-store",
-    "referrer-policy": "no-referrer",
-    "x-content-type-options": "nosniff",
-    "x-frame-options": "DENY",
-    "access-control-allow-origin": "*",
-    "content-security-policy": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads allow-top-navigation-by-user-activation",
-  };
+  return new Response(body, { status, headers: hostedSecurityHeaders(contentType) });
 }
 
 export default http;
