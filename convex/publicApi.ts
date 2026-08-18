@@ -9,6 +9,7 @@ import { internal } from "./_generated/api";
 import { audit, requireProject } from "./lib/authz";
 import { hashToken } from "./lib/tokens";
 import { consumeRateLimit } from "./lib/rateLimit";
+import { hostedPageMatchesPath } from "./lib/hostedRuntime";
 import {
   ALLOWED_REACTIONS,
   cleanBody,
@@ -20,6 +21,7 @@ export const feedbackForDashboard = query({
   args: {
     projectId: v.id("projects"),
     pageId: v.optional(v.id("pages")),
+    pageIds: v.optional(v.array(v.id("pages"))),
     unresolvedOnly: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -27,7 +29,7 @@ export const feedbackForDashboard = query({
     return hydrateProject(
       ctx,
       args.projectId,
-      args.pageId,
+      args.pageIds ?? (args.pageId ? [args.pageId] : undefined),
       args.unresolvedOnly ?? false,
     );
   },
@@ -118,18 +120,20 @@ export const readWithToken = internalMutation({
       `${access.rateKey}:read`,
       240,
     );
-    const page = args.pageKey
-      ? await ctx.db
+    const pageIds = args.pageKey
+      ? (await ctx.db
           .query("pages")
-          .withIndex("by_project_key", (q) =>
-            q.eq("projectId", access.project._id).eq("pageKey", args.pageKey!),
-          )
-          .unique()
-      : null;
+          .withIndex("by_project", (q) => q.eq("projectId", access.project._id))
+          .collect())
+          .filter((page) => args.pageKey!.startsWith("hosted:")
+            ? hostedPageMatchesPath(page.pageKey, args.pageKey!.slice("hosted:".length))
+            : page.pageKey === args.pageKey)
+          .map((page) => page._id)
+      : undefined;
     const feedback = await hydrateProject(
       ctx,
       access.project._id,
-      page?._id,
+      pageIds,
       args.unresolvedOnly ?? false,
       args.updatedSince,
     );
@@ -692,15 +696,17 @@ async function exposePublicErrors<T>(operation: () => Promise<T>): Promise<T> {
 async function hydrateProject(
   ctx: any,
   projectId: any,
-  pageId?: any,
+  pageIds?: any[],
   unresolvedOnly = false,
   updatedSince?: number,
 ) {
-  const threads = pageId
-    ? await ctx.db
-        .query("threads")
-        .withIndex("by_page", (q: any) => q.eq("pageId", pageId))
-        .collect()
+  const threads = pageIds
+    ? (await Promise.all(pageIds.map((pageId) =>
+        ctx.db
+          .query("threads")
+          .withIndex("by_page", (q: any) => q.eq("pageId", pageId))
+          .collect()
+      ))).flat()
     : await ctx.db
         .query("threads")
         .withIndex("by_project_updated", (q: any) =>

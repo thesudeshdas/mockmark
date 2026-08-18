@@ -1,5 +1,10 @@
-export function hostedPageIdentity(deploymentKey: string, path: string) {
-  return `hosted:${deploymentKey}:${path}`.slice(0, 240);
+export function hostedPageIdentity(path: string) {
+  return `hosted:${path}`.slice(0, 240);
+}
+
+export function hostedPageMatchesPath(pageKey: string, path: string) {
+  return pageKey === hostedPageIdentity(path)
+    || (pageKey.startsWith("hosted:mmb_") && pageKey.endsWith(`:${path}`));
 }
 
 export function hostedBootstrap(
@@ -8,7 +13,7 @@ export function hostedBootstrap(
   path: string,
   baseHref: string,
 ) {
-  const pageKey = hostedPageIdentity(deploymentKey, path);
+  const pageKey = hostedPageIdentity(path);
   return `<base href="${baseHref}"><script>window.__MOCKMARK_HOSTED_TOKEN__=${scriptJson(token)};window.__MOCKMARK_HOSTED_PAGE_KEY__=${scriptJson(pageKey)};</script>`;
 }
 

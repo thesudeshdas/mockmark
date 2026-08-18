@@ -529,9 +529,12 @@ button:hover {
   box-shadow: 0 0 0 4px #35a96818;
 }
 .deployment-browser-grid {
-  height: calc(100vh - 174px);
+  height: calc(100vh - 70px);
   display: grid;
   grid-template-columns: 320px minmax(420px, 1fr) 350px;
+}
+.deployment-browser.with-history-head .deployment-browser-grid {
+  height: calc(100vh - 174px);
 }
 .deployment-file-pane,
 .deployment-feedback-pane {

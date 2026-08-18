@@ -3,6 +3,7 @@ import { action, internalMutation, internalQuery, query } from "./_generated/ser
 import { internal } from "./_generated/api";
 import { audit, requireProject } from "./lib/authz";
 import { hashToken, randomToken } from "./lib/tokens";
+import { hostedPageMatchesPath } from "./lib/hostedRuntime";
 
 const MAX_FILES = 200;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
@@ -133,15 +134,37 @@ export const completeWithToken = internalMutation({
     }
     await ctx.db.patch(deployment._id, { completedAt: Date.now() });
     await ctx.db.patch(token._id, { lastUsedAt: Date.now() });
+    const prunedDeployments = await pruneSupersededDeployments(ctx, project._id, deployment._id);
     await audit(ctx, {
       organizationId: project.organizationId,
       projectId: project._id,
       action: "mock_deployment.completed",
       targetType: "mockDeployment",
       targetId: deployment._id,
-      metadata: { deploymentKey: deployment.deploymentKey, fileCount: deployment.fileCount },
+      metadata: {
+        deploymentKey: deployment.deploymentKey,
+        fileCount: deployment.fileCount,
+        prunedDeployments,
+      },
     });
     return { deploymentKey: deployment.deploymentKey, htmlPaths: deployment.htmlPaths };
+  },
+});
+
+export const pruneHistory = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const deployments = await ctx.db
+      .query("mockDeployments")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .order("desc")
+      .collect();
+    const current = deployments.find((deployment) => deployment.completedAt);
+    if (!current) return { keptDeploymentId: null, prunedDeployments: 0 };
+    return {
+      keptDeploymentId: current._id,
+      prunedDeployments: await pruneSupersededDeployments(ctx, args.projectId, current._id),
+    };
   },
 });
 
@@ -164,6 +187,30 @@ export const list = query({
   },
 });
 
+export const latest = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    await requireProject(ctx, args.projectId);
+    const deployments = await ctx.db
+      .query("mockDeployments")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .order("desc")
+      .take(30);
+    const deployment = deployments.find((item) => item.completedAt && item.htmlPaths.length);
+    return deployment ? {
+      _id: deployment._id,
+      deploymentKey: deployment.deploymentKey,
+      label: deployment.label,
+      branch: deployment.branch,
+      commitSha: deployment.commitSha,
+      pageCount: deployment.htmlPaths.length,
+      primaryHtmlPath: deployment.htmlPaths[0],
+      createdAt: deployment.createdAt,
+      completedAt: deployment.completedAt,
+    } : null;
+  },
+});
+
 export const browse = query({
   args: { deploymentId: v.id("mockDeployments") },
   handler: async (ctx, args) => {
@@ -171,27 +218,22 @@ export const browse = query({
     if (!deployment || !deployment.completedAt)
       throw new ConvexError("Hosted deployment not found.");
     await requireProject(ctx, deployment.projectId);
+    const projectPages = await ctx.db
+      .query("pages")
+      .withIndex("by_project", (q) => q.eq("projectId", deployment.projectId))
+      .collect();
 
     const files = await Promise.all(
       deployment.manifest.filter((file) => file.contentType.split(";", 1)[0] === "text/html").map(async (file) => {
-        const pageKey = hostedPageKey(deployment.deploymentKey, file.path);
-        const page = await ctx.db
-          .query("pages")
-          .withIndex("by_project_key", (q) =>
-            q.eq("projectId", deployment.projectId).eq("pageKey", pageKey),
-          )
-          .unique();
-        const threads = page
-          ? await ctx.db
-              .query("threads")
-              .withIndex("by_page", (q) => q.eq("pageId", page._id))
-              .collect()
-          : [];
+        const pages = projectPages.filter((page) => hostedPageMatchesPath(page.pageKey, file.path));
+        const threads = (await Promise.all(pages.map((page) =>
+          ctx.db.query("threads").withIndex("by_page", (q) => q.eq("pageId", page._id)).collect()
+        ))).flat();
         const visible = threads.filter((thread) => !thread.deletedAt);
         const open = visible.filter((thread) => !thread.resolvedAt).length;
         return {
           ...file,
-          pageId: page?._id,
+          pageIds: pages.map((page) => page._id),
           conversations: visible.length,
           open,
           resolved: visible.length - open,
@@ -250,6 +292,28 @@ async function requireDeployAccess(ctx: any, tokenHash: string, projectKey: stri
   return { token, project };
 }
 
+async function pruneSupersededDeployments(ctx: any, projectId: any, keepDeploymentId: any) {
+  const deployments = await ctx.db
+    .query("mockDeployments")
+    .withIndex("by_project", (q: any) => q.eq("projectId", projectId))
+    .collect();
+  let pruned = 0;
+  for (const deployment of deployments) {
+    if (deployment._id === keepDeploymentId) continue;
+    const assets = await ctx.db
+      .query("mockAssets")
+      .withIndex("by_deployment", (q: any) => q.eq("deploymentId", deployment._id))
+      .collect();
+    for (const asset of assets) {
+      await ctx.storage.delete(asset.storageId);
+      await ctx.db.delete(asset._id);
+    }
+    await ctx.db.delete(deployment._id);
+    pruned += 1;
+  }
+  return pruned;
+}
+
 function validateFiles(files: Array<{ path: string; contentType: string; size: number; sha256: string }>) {
   if (!files.length || files.length > MAX_FILES) throw new ConvexError(`Deployment must contain 1-${MAX_FILES} files.`);
   const paths = new Set<string>();
@@ -278,8 +342,4 @@ export function matchesStorageMetadata(
       stored.size === expected.size &&
       stored.sha256.toLowerCase() === expected.sha256.toLowerCase(),
   );
-}
-
-function hostedPageKey(deploymentKey: string, path: string) {
-  return `hosted:${deploymentKey}:${path}`.slice(0, 240);
 }
