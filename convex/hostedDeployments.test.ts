@@ -72,6 +72,55 @@ describe("hosted mock deployments", () => {
     await expect(t.withIdentity({ subject: outsiderId }).action(api.previewSessions.createForDeployment, { deploymentKey: "mmb_hosted" })).rejects.toThrow(/project not found/i);
   });
 
+  test("browses deployment-root files and includes zero-comment HTML pages", async () => {
+    const t = convexTest(schema, modules);
+    const { ownerId, projectId, deploymentId } = await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.patch(deploymentId, {
+        label: "Today experience",
+        fileCount: 4,
+        htmlPaths: ["today/index.html", "today/states/empty.html"],
+        manifest: [
+          { path: "today/index.html", contentType: "text/html", size: 12, sha256: "a".repeat(64) },
+          { path: "today/states/empty.html", contentType: "text/html", size: 12, sha256: "b".repeat(64) },
+          { path: "today/assets/app.css", contentType: "text/css; charset=utf-8", size: 12, sha256: "c".repeat(64) },
+          { path: "shared/logo.svg", contentType: "image/svg+xml", size: 12, sha256: "d".repeat(64) },
+        ],
+      });
+      const pageId = await ctx.db.insert("pages", {
+        projectId,
+        pageKey: "hosted:mmb_hosted:today/index.html",
+        path: "today/index.html",
+        title: "Today",
+        lastSeenAt: 1,
+      });
+      for (const [resolvedAt, deletedAt] of [[undefined, undefined], [2, undefined], [undefined, 3]] as const)
+        await ctx.db.insert("threads", {
+          projectId,
+          pageId,
+          x: 0.5,
+          y: 0.5,
+          viewportWidth: 1000,
+          viewportHeight: 800,
+          authorName: "Owner",
+          createdAt: 1,
+          updatedAt: 1,
+          resolvedAt,
+          deletedAt,
+        });
+    });
+    const result = await t.withIdentity({ subject: ownerId }).query(api.deployments.browse, { deploymentId });
+    expect(result.files.map((file) => file.path)).toEqual([
+      "today/index.html",
+      "today/states/empty.html",
+      "today/assets/app.css",
+      "shared/logo.svg",
+    ]);
+    expect(result.files[0]).toMatchObject({ conversations: 2, open: 1, resolved: 1 });
+    expect(result.files[1]).toMatchObject({ conversations: 0, open: 0, resolved: 0 });
+    expect(result.files[1]).not.toHaveProperty("pageId");
+  });
+
   test("hosted gateway never serves without a valid member session", async () => {
     const t = convexTest(schema, modules);
     await seed(t);

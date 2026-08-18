@@ -153,6 +153,59 @@ export const list = query({
   },
 });
 
+export const browse = query({
+  args: { deploymentId: v.id("mockDeployments") },
+  handler: async (ctx, args) => {
+    const deployment = await ctx.db.get(args.deploymentId);
+    if (!deployment || !deployment.completedAt)
+      throw new ConvexError("Hosted deployment not found.");
+    await requireProject(ctx, deployment.projectId);
+
+    const files = await Promise.all(
+      deployment.manifest.map(async (file) => {
+        if (file.contentType.split(";", 1)[0] !== "text/html")
+          return { ...file, pageId: undefined, conversations: 0, open: 0, resolved: 0 };
+        const pageKey = hostedPageKey(deployment.deploymentKey, file.path);
+        const page = await ctx.db
+          .query("pages")
+          .withIndex("by_project_key", (q) =>
+            q.eq("projectId", deployment.projectId).eq("pageKey", pageKey),
+          )
+          .unique();
+        const threads = page
+          ? await ctx.db
+              .query("threads")
+              .withIndex("by_page", (q) => q.eq("pageId", page._id))
+              .collect()
+          : [];
+        const visible = threads.filter((thread) => !thread.deletedAt);
+        const open = visible.filter((thread) => !thread.resolvedAt).length;
+        return {
+          ...file,
+          pageId: page?._id,
+          conversations: visible.length,
+          open,
+          resolved: visible.length - open,
+        };
+      }),
+    );
+    return {
+      deployment: {
+        _id: deployment._id,
+        deploymentKey: deployment.deploymentKey,
+        label: deployment.label,
+        branch: deployment.branch,
+        commitSha: deployment.commitSha,
+        fileCount: deployment.fileCount,
+        totalBytes: deployment.totalBytes,
+        createdAt: deployment.createdAt,
+        completedAt: deployment.completedAt,
+      },
+      files,
+    };
+  },
+});
+
 export const validateDeployAccess = internalQuery({
   args: { tokenHash: v.string(), projectKey: v.string() },
   handler: async (ctx, args) => {
@@ -218,4 +271,8 @@ export function matchesStorageMetadata(
       stored.size === expected.size &&
       stored.sha256.toLowerCase() === expected.sha256.toLowerCase(),
   );
+}
+
+function hostedPageKey(deploymentKey: string, path: string) {
+  return `hosted:${deploymentKey}:${path}`.slice(0, 240);
 }
