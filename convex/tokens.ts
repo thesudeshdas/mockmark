@@ -8,14 +8,17 @@ import { cleanText } from "./lib/validation";
 export const create = action({
   args: {
     projectId: v.id("projects"),
+    kind: v.optional(v.union(v.literal("installation"), v.literal("deployment"))),
     label: v.string(),
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<{ token: string; tokenId: string }> => {
-    const token = randomToken("mmi");
+    const kind = args.kind ?? "installation";
+    const token = randomToken(kind === "deployment" ? "mmd" : "mmi");
     const tokenHash = await hashToken(token);
     const tokenId = await ctx.runMutation(internal.tokens.store, {
       ...args,
+      kind,
       tokenHash,
       tokenPrefix: token.slice(0, 12),
     });
@@ -26,6 +29,7 @@ export const create = action({
 export const store = internalMutation({
   args: {
     projectId: v.id("projects"),
+    kind: v.union(v.literal("installation"), v.literal("deployment")),
     label: v.string(),
     tokenHash: v.string(),
     tokenPrefix: v.string(),
@@ -39,7 +43,7 @@ export const store = internalMutation({
     );
     const tokenId = await ctx.db.insert("accessTokens", {
       ...args,
-      kind: "installation",
+      kind: args.kind,
       label: cleanText(args.label, "Token label", 2, 80),
       createdBy: userId,
       createdAt: Date.now(),
@@ -48,7 +52,7 @@ export const store = internalMutation({
       organizationId: project.organizationId,
       projectId: project._id,
       actorUserId: userId,
-      action: "token.installation.created",
+      action: `token.${args.kind}.created`,
       targetType: "accessToken",
       targetId: tokenId,
     });

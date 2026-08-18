@@ -92,7 +92,7 @@ export default defineSchema({
     .index("by_project_origin", ["projectId", "origin"]),
   accessTokens: defineTable({
     projectId: v.id("projects"),
-    kind: v.literal("installation"),
+    kind: v.union(v.literal("installation"), v.literal("deployment")),
     label: v.string(),
     tokenHash: v.string(),
     tokenPrefix: v.string(),
@@ -104,6 +104,39 @@ export default defineSchema({
   })
     .index("by_token_hash", ["tokenHash"])
     .index("by_project", ["projectId"]),
+  mockDeployments: defineTable({
+    projectId: v.id("projects"),
+    deploymentKey: v.string(),
+    label: v.optional(v.string()),
+    branch: v.optional(v.string()),
+    commitSha: v.optional(v.string()),
+    fileCount: v.number(),
+    totalBytes: v.number(),
+    htmlPaths: v.array(v.string()),
+    manifest: v.array(v.object({
+      path: v.string(),
+      contentType: v.string(),
+      size: v.number(),
+      sha256: v.string(),
+    })),
+    createdByTokenId: v.id("accessTokens"),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_deployment_key", ["deploymentKey"]),
+  mockAssets: defineTable({
+    projectId: v.id("projects"),
+    deploymentId: v.id("mockDeployments"),
+    path: v.string(),
+    storageId: v.id("_storage"),
+    contentType: v.string(),
+    size: v.number(),
+    sha256: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_deployment", ["deploymentId"])
+    .index("by_deployment_path", ["deploymentId", "path"]),
   memberPreviewSessions: defineTable({
     projectId: v.id("projects"),
     userId: v.id("users"),

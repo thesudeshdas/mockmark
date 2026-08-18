@@ -12,9 +12,9 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
 export function App() {
-  const authorizeProject = new URL(location.href).searchParams.get(
-    "mockmark_authorize",
-  );
+  const params = new URL(location.href).searchParams;
+  const authorizeProject = params.get("mockmark_authorize");
+  const deploymentKey = params.get("deployment");
   return (
     <>
       <AuthLoading>
@@ -24,7 +24,9 @@ export function App() {
         <AuthScreen />
       </Unauthenticated>
       <Authenticated>
-        {authorizeProject ? (
+        {deploymentKey ? (
+          <HostedPreview deploymentKey={deploymentKey} />
+        ) : authorizeProject ? (
           <PreviewAuthorization projectKey={authorizeProject} />
         ) : (
           <Workspace />
@@ -32,6 +34,29 @@ export function App() {
       </Authenticated>
     </>
   );
+}
+
+function HostedPreview({ deploymentKey }: { deploymentKey: string }) {
+  const createSession = useAction(api.previewSessions.createForDeployment);
+  const [status, setStatus] = useState("Opening hosted mock…");
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    const path = new URL(location.href).searchParams.get("path") || "index.html";
+    if (!safeHostedPath(path)) {
+      setStatus("Invalid mock path.");
+      return;
+    }
+    void createSession({ deploymentKey })
+      .then(({ token }) => {
+        const siteUrl = (import.meta.env.VITE_CONVEX_SITE_URL || import.meta.env.VITE_CONVEX_URL.replace(/\.convex\.cloud$/, ".convex.site")).replace(/\/$/, "");
+        const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+        location.replace(`${siteUrl}/hosted/${encodeURIComponent(token)}/${encodeURIComponent(deploymentKey)}/${encodedPath}`);
+      })
+      .catch((reason) => setStatus(errorMessage(reason)));
+  }, [createSession, deploymentKey]);
+  return <Centered>{status}</Centered>;
 }
 
 function PreviewAuthorization({ projectKey }: { projectKey: string }) {
@@ -486,16 +511,17 @@ function Project({
   const createToken = useAction(api.tokens.create);
   const revokeToken = useMutation(api.tokens.revoke);
   const deleteThread = useMutation(api.publicApi.deleteThreadForDashboard);
-  const [issued, setIssued] = useState<string | null>(null);
+  const deployments = useQuery(api.deployments.list, { projectId });
+  const [issued, setIssued] = useState<{ token: string; kind: "installation" | "deployment" } | null>(null);
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
-  if (!detail || !feedback) return <Centered>Loading project…</Centered>;
+  if (!detail || !feedback || !deployments) return <Centered>Loading project…</Centered>;
   const canAdmin = detail.role === "admin";
   const threads = feedback.threads.filter(
     (thread) =>
       filter === "all" ||
       (filter === "resolved" ? thread.resolvedAt : !thread.resolvedAt),
   );
-  const install = `npm install -D @thesudeshdas/mockmark\nnpx mockmark init --project ${detail.project.projectKey} --convex-url ${import.meta.env.VITE_CONVEX_URL} --app-url ${location.origin} ./mocks`;
+  const install = `npm install -D @thesudeshdas/mockmark\nnpx mockmark init ./mocks --project ${detail.project.projectKey} --convex-url ${import.meta.env.VITE_CONVEX_URL} --app-url ${location.origin}`;
   return (
     <section className="page">
       <button className="back" onClick={onBack}>
@@ -529,22 +555,34 @@ function Project({
               onClick={async () => {
                 const result = await createToken({
                   projectId,
+                  kind: "installation",
                   label: "CLI installation",
                 });
-                setIssued(result.token);
+                setIssued({ token: result.token, kind: "installation" });
               }}
             >
               Create CLI token
+            </button>
+          ) : null}
+          {canAdmin ? (
+            <button
+              className="primary"
+              onClick={async () => {
+                const result = await createToken({ projectId, kind: "deployment", label: "Mock deployments" });
+                setIssued({ token: result.token, kind: "deployment" });
+              }}
+            >
+              Create deploy token
             </button>
           ) : null}
         </div>
       </div>
       {issued ? (
         <Notice tone="success">
-          <b>CLI token—copy now; it will not be shown again.</b>
-          <code>{issued}</code>
+          <b>{issued.kind === "deployment" ? "Deploy" : "CLI"} token—copy now; it will not be shown again.</b>
+          <code>{issued.token}</code>
           <button
-            onClick={() => void navigator.clipboard.writeText(issued)}
+            onClick={() => void navigator.clipboard.writeText(issued.token)}
           >
             Copy
           </button>
@@ -562,6 +600,10 @@ function Project({
             Then authenticate CLI with an installation token:{" "}
             <code>npx mockmark login TOKEN</code>
           </p>
+          <p className="muted">
+            Authenticate once with a deploy token, then run:{" "}
+            <code>npx mockmark deploy</code>
+          </p>
         </section>
         <section className="card stats">
           <div>
@@ -578,6 +620,21 @@ function Project({
           </div>
         </section>
       </div>
+      <section className="card token-list">
+        <p className="eyebrow">Hosted mocks</p>
+        <h2>Deployments</h2>
+        {deployments.length ? deployments.map((deployment) => (
+          <div key={deployment._id}>
+            <span>
+              <b>{deployment.label || deployment.commitSha?.slice(0, 8) || "Mock deployment"}</b>
+              <small>{deployment.fileCount} files · {new Date(deployment.createdAt).toLocaleString()}</small>
+            </span>
+            {deployment.completedAt && deployment.htmlPaths[0] ? (
+              <a href={hostedShareUrl(deployment.deploymentKey, deployment.htmlPaths[0])} target="_blank" rel="noreferrer">Open</a>
+            ) : <small>Uploading</small>}
+          </div>
+        )) : <p className="muted">No hosted deployments yet.</p>}
+      </section>
       <section className="card token-list">
         <p className="eyebrow">Access</p>
         <h2>Project tokens</h2>
@@ -880,4 +937,13 @@ function errorMessage(reason: unknown) {
   if (!(reason instanceof Error)) return "Something went wrong.";
   const convex = [...reason.message.matchAll(/(?:Uncaught )?ConvexError:\s*([^\n]+)/g)].at(-1)?.[1];
   return (convex ?? reason.message.split("\n")[0]).replace(/^Uncaught ConvexError:\s*/, "");
+}
+function safeHostedPath(path: string) {
+  return path.length > 0 && !path.startsWith("/") && !path.includes("\\") && !path.split("/").some((part) => !part || part === "." || part === "..");
+}
+function hostedShareUrl(deploymentKey: string, path: string) {
+  const url = new URL(location.origin);
+  url.searchParams.set("deployment", deploymentKey);
+  url.searchParams.set("path", path);
+  return url.toString();
 }

@@ -35,6 +35,21 @@ export const createForProject = action({
   },
 });
 
+export const createForDeployment = action({
+  args: { deploymentKey: v.string() },
+  handler: async (ctx, args): Promise<{ token: string; expiresAt: number; projectKey: string }> => {
+    const token = randomToken("mms");
+    const tokenHash = await hashToken(token);
+    const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+    const { projectKey } = await ctx.runMutation(internal.previewSessions.storeForDeployment, {
+      deploymentKey: args.deploymentKey,
+      tokenHash,
+      expiresAt,
+    });
+    return { token, expiresAt, projectKey };
+  },
+});
+
 export const store = internalMutation({
   args: {
     projectId: v.id("projects"),
@@ -105,6 +120,32 @@ export const storeForProject = internalMutation({
       targetId: sessionId,
     });
     return sessionId;
+  },
+});
+
+export const storeForDeployment = internalMutation({
+  args: { deploymentKey: v.string(), tokenHash: v.string(), expiresAt: v.number() },
+  handler: async (ctx, args) => {
+    const deployment = await ctx.db.query("mockDeployments").withIndex("by_deployment_key", (q) => q.eq("deploymentKey", args.deploymentKey)).unique();
+    if (!deployment || !deployment.completedAt) throw new Error("Hosted mock not found.");
+    const { project, userId } = await requireProject(ctx, deployment.projectId);
+    const sessionId = await ctx.db.insert("memberPreviewSessions", {
+      projectId: project._id,
+      userId,
+      tokenHash: args.tokenHash,
+      createdAt: Date.now(),
+      expiresAt: args.expiresAt,
+    });
+    await audit(ctx, {
+      organizationId: project.organizationId,
+      projectId: project._id,
+      actorUserId: userId,
+      action: "hosted_preview_session.created",
+      targetType: "memberPreviewSession",
+      targetId: sessionId,
+      metadata: { deploymentKey: deployment.deploymentKey },
+    });
+    return { projectKey: project.projectKey };
   },
 });
 

@@ -2,6 +2,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { findHtml, injectHtml, removeInjection } from "../src/html.js";
@@ -16,6 +17,7 @@ import {
   formatMigrationPlan,
   recoverIncompleteMigration,
 } from "../src/onboarding.js";
+import { collectDeploymentFiles, shareUrl } from "../src/deployment.js";
 
 const args = process.argv.slice(2);
 const command = args.shift() ?? "help";
@@ -28,6 +30,7 @@ Commands:
   mockmark init [mock-dir] [--project KEY --convex-url URL --app-url URL] [--dry-run] [--yes]
   mockmark inject [mock-dir]
   mockmark login TOKEN
+  mockmark deploy [mock-dir] [--label LABEL]
   mockmark status
   mockmark comments [--all] [--page PAGE_KEY] [--json] [--since ISO_DATE]
   mockmark open
@@ -41,6 +44,7 @@ async function main() {
   if (command === "init") return init();
   if (command === "inject") return inject();
   if (command === "login") return login();
+  if (command === "deploy") return deploy();
   if (command === "status") return status();
   if (command === "comments") return comments();
   if (command === "open") return openDashboard();
@@ -93,15 +97,68 @@ function inject() {
 async function login() {
   const config = loadConfig(process.cwd());
   const token = String(flags._[0] ?? "").trim();
-  if (!token.startsWith("mmi_")) throw new Error("Use an installation token beginning with mmi_.");
-  await readFeedback(config, token, { unresolvedOnly: true });
-  saveCredential(config.projectKey, token);
-  console.log(`Authenticated project ${config.projectKey}. Token stored outside repository with user-only permissions.`);
+  if (token.startsWith("mmi_")) {
+    await readFeedback(config, token, { unresolvedOnly: true });
+    saveCredential(config.projectKey, "feedbackToken", token);
+    console.log(`Feedback CLI authenticated for project ${config.projectKey}.`);
+  } else if (token.startsWith("mmd_")) {
+    const client = new ConvexHttpClient(config.convexUrl);
+    const ref = makeFunctionReference("deployments:validateToken");
+    await client.action(ref, { token, projectKey: config.projectKey });
+    saveCredential(config.projectKey, "deploymentToken", token);
+    console.log(`Deployment CLI authenticated for project ${config.projectKey}.`);
+  } else {
+    throw new Error("Use a feedback token beginning with mmi_ or deployment token beginning with mmd_.");
+  }
+  console.log("Token stored outside repository with user-only permissions.");
+}
+
+async function deploy() {
+  const config = loadConfig(process.cwd());
+  const mockDir = resolve(flags._[0] ?? config.mockDir);
+  injectDirectory(mockDir, config);
+  const files = collectDeploymentFiles(mockDir);
+  const token = loadCredential(config.projectKey, "deploymentToken", "deployment");
+  const client = new ConvexHttpClient(config.convexUrl);
+  const beginRef = makeFunctionReference("deployments:begin");
+  const completeRef = makeFunctionReference("deployments:complete");
+  const git = gitMetadata();
+  console.log(`Uploading ${files.length} file(s) from ${mockDir}…`);
+  const plan = await client.action(beginRef, {
+    token,
+    projectKey: config.projectKey,
+    label: stringFlag("label"),
+    branch: git.branch,
+    commitSha: git.commitSha,
+    files: files.map(({ absolutePath: _absolutePath, ...file }) => file),
+  });
+  const uploadByPath = new Map(plan.uploads.map((upload) => [upload.path, upload.uploadUrl]));
+  const assets = [];
+  for (const file of files) {
+    const uploadUrl = uploadByPath.get(file.path);
+    if (!uploadUrl) throw new Error(`Upload URL missing for ${file.path}.`);
+    const response = await fetch(uploadUrl, {
+      method: "POST",
+      headers: { "content-type": file.contentType },
+      body: readFileSync(file.absolutePath),
+    });
+    if (!response.ok) throw new Error(`Upload failed for ${file.path} (${response.status}).`);
+    const { storageId } = await response.json();
+    assets.push({ path: file.path, contentType: file.contentType, size: file.size, sha256: file.sha256, storageId });
+  }
+  const result = await client.action(completeRef, {
+    token,
+    projectKey: config.projectKey,
+    deploymentId: plan.deploymentId,
+    assets,
+  });
+  console.log(`Hosted deployment ready: ${result.deploymentKey}`);
+  for (const path of result.htmlPaths) console.log(`${path}: ${shareUrl(config.appUrl, result.deploymentKey, path)}`);
 }
 
 async function status() {
   const config = loadConfig(process.cwd());
-  const token = loadCredential(config.projectKey);
+  const token = loadCredential(config.projectKey, "feedbackToken", "feedback");
   const data = await readFeedback(config, token, { unresolvedOnly: true });
   console.log(`Connected: ${data.project.name}`);
   console.log(`Open conversations: ${data.threads.length}`);
@@ -110,7 +167,7 @@ async function status() {
 
 async function comments() {
   const config = loadConfig(process.cwd());
-  const token = loadCredential(config.projectKey);
+  const token = loadCredential(config.projectKey, "feedbackToken", "feedback");
   const since = flags.since ? Date.parse(String(flags.since)) : undefined;
   if (flags.since && !Number.isFinite(since)) throw new Error("--since must be a valid ISO date.");
   const data = await readFeedback(config, token, { pageKey: stringFlag("page"), unresolvedOnly: !flags.all, updatedSince: since });
@@ -167,8 +224,9 @@ function formatMarkdown(data) {
 }
 
 function credentialPath(projectKey) { return resolve(homedir(), ".config", "mockmark", `${projectKey}.json`); }
-function saveCredential(projectKey, token) { const path = credentialPath(projectKey); mkdirSync(dirname(path), { recursive: true, mode: 0o700 }); writeFileSync(path, JSON.stringify({ token }, null, 2), { mode: 0o600 }); chmodSync(path, 0o600); }
-function loadCredential(projectKey) { const path = credentialPath(projectKey); if (!existsSync(path)) throw new Error("CLI is not authenticated. Run: npx mockmark login <installation-token>"); return JSON.parse(readFileSync(path, "utf8")).token; }
+function saveCredential(projectKey, field, token) { const path = credentialPath(projectKey); mkdirSync(dirname(path), { recursive: true, mode: 0o700 }); const current = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {}; writeFileSync(path, JSON.stringify({ ...current, [field]: token }, null, 2), { mode: 0o600 }); chmodSync(path, 0o600); }
+function loadCredential(projectKey, field, label) { const path = credentialPath(projectKey); if (!existsSync(path)) throw new Error(`CLI ${label} access is not authenticated. Run: npx mockmark login <token>`); const credential = JSON.parse(readFileSync(path, "utf8")); const token = credential[field] ?? (field === "feedbackToken" ? credential.token : undefined); if (!token) throw new Error(`CLI ${label} access is not authenticated. Run: npx mockmark login <token>`); return token; }
+function gitMetadata() { try { return { branch: execFileSync("git", ["branch", "--show-current"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || undefined, commitSha: execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim() || undefined }; } catch { return {}; } }
 function ensureIgnore() { const path = resolve(".gitignore"); const current = existsSync(path) ? readFileSync(path, "utf8") : ""; const entries = [".env.local", ".mockmark/"]; let next = current; for (const entry of entries) if (!current.split(/\r?\n/).includes(entry)) next += `${next && !next.endsWith("\n") ? "\n" : ""}${entry}\n`; if (next !== current) writeFileSync(path, next); }
 function required(name) { const value = flags[name]; if (!value || value === true) throw new Error(`--${name} is required.`); return String(value); }
 function stringFlag(name) { const value = flags[name]; return typeof value === "string" ? value : undefined; }

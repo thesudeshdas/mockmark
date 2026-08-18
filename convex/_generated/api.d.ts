@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as deployments from "../deployments.js";
 import type * as http from "../http.js";
 import type * as lib_authz from "../lib/authz.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
@@ -29,6 +30,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  deployments: typeof deployments;
   http: typeof http;
   "lib/authz": typeof lib_authz;
   "lib/rateLimit": typeof lib_rateLimit;

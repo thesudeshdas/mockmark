@@ -55,6 +55,33 @@ npx mockmark status
 
 Credentials are stored under the current user's config directory, outside the repository, with user-only permissions.
 
+## Host and share mocks
+
+Create a separate deploy token from the project dashboard, then publish every
+file under `./mocks` to Mockmark-managed hosting:
+
+```bash
+npx mockmark login mmd_DEPLOYMENT_TOKEN
+npx mockmark deploy
+```
+
+Each deploy creates a new immutable build. Mockmark prints one share URL per
+HTML file, for example:
+
+```text
+checkout.html: https://YOUR-MOCKMARK-APP.example/?deployment=mmb_BUILD&path=checkout.html
+```
+
+Share URLs contain no credentials. Reviewers sign in to Mockmark; workspace
+membership plus explicit project membership is required. Viewers can open the
+mock, while commenters and admins can leave and manage feedback. Removing
+project access invalidates existing preview sessions on their next request.
+
+Hosted files run from private Convex storage through a short-lived member
+gateway. Mock pages receive a restrictive browser sandbox, files are limited to
+200 per build, individual files to 5 MiB, and each build to 25 MiB. Symlinks are
+rejected. New deploys never overwrite earlier build URLs.
+
 ## Review flow
 
 1. A project admin authorizes the deployed mock's exact origin.
@@ -81,6 +108,7 @@ Default output is Markdown containing source context and unresolved human conver
 
 ```bash
 npx mockmark inject ./mocks     # inject newly added HTML files
+npx mockmark deploy ./mocks     # host mocks and print private share URLs
 npx mockmark open               # print dashboard URL
 npx mockmark uninstall ./mocks  # remove loaders; hosted feedback remains
 ```
@@ -112,10 +140,10 @@ See [docs/saas-build-plan.md](docs/saas-build-plan.md) and [docs/operations.md](
 
 - Every stored entity is project/organization scoped.
 - Workspace membership never grants project access. Every project requires an explicit `admin`, `commenter`, or `viewer` assignment.
-- Signed-in mock access uses short-lived member preview sessions and rechecks workspace plus project membership on every request.
+- Signed-in external and Mockmark-hosted access uses short-lived member preview sessions and rechecks workspace plus project membership on every request.
 - Member session handoff is restricted to exact project-authorized origins; localhost is allowed for development.
 - Embedded review requires a signed-in project member. CLI operations require hashed, revocable, project-scoped installation tokens.
-- Installation tokens can read feedback but cannot annotate or open browser mocks.
+- Installation tokens can read feedback but cannot deploy, annotate, or open browser mocks. Deployment tokens can upload static mocks but cannot read or write feedback.
 - Public token traffic is rate-limited transactionally.
 - No organization credential is committed to client repositories.
 - Browser-delivered code is inspectable. Authorization, persistence, tenancy, and audit logic remain server-side.

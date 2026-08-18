@@ -36,9 +36,10 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 3. Run dashboard-generated `mockmark init` command inside target repository.
 4. Review discovered moves and reference updates. Resolve collisions; confirm only after the plan is correct. For automation, run `--dry-run` before `--yes`.
 5. Run `npx mockmark login TOKEN` and `npx mockmark status`.
-6. Authorize the deployed mock origin, assign a project commenter, then sign in from the mock.
-7. Create, reply, react, resolve, and confirm CLI receives feedback.
-8. Confirm a second repository without `.mockmark.json` remains unchanged.
+6. Create a deployment token, run `npx mockmark login mmd_TOKEN`, then `npx mockmark deploy`.
+7. Open each printed share URL as an assigned viewer/commenter. Confirm an unassigned workspace member receives no project details.
+8. Create, reply, react, resolve, and confirm CLI receives feedback.
+9. Confirm a second repository without `.mockmark.json` remains unchanged.
 
 ## Incident controls
 
@@ -61,4 +62,6 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 - Production Convex functions and `/health` verified.
 - Production dashboard and `/embed.js` verified.
 - Fresh throwaway repository install/uninstall verified.
+- Fresh throwaway repository deploy verified; each HTML share URL loads assets after project-member sign-in.
+- Hosted asset requests fail after project membership removal or preview-session expiry.
 - Tenant-crossing tests pass.

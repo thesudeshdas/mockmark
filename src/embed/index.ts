@@ -35,6 +35,7 @@ type Region = { x: number; y: number; width?: number; height?: number };
 declare global {
   interface Window {
     MockmarkConfig?: Partial<Config>;
+    __MOCKMARK_HOSTED_TOKEN__?: string;
   }
 }
 
@@ -86,9 +87,14 @@ class MockmarkEmbed {
   }
 
   private captureSession() {
-    this.token =
-      sessionStorage.getItem(`mockmark.token.${this.config.projectKey}`) ??
-      "";
+    this.token = window.__MOCKMARK_HOSTED_TOKEN__ ?? "";
+    if (!this.token) {
+      try {
+        this.token = sessionStorage.getItem(`mockmark.token.${this.config.projectKey}`) ?? "";
+      } catch {
+        this.token = "";
+      }
+    }
   }
 
   private bindAuthorization() {
@@ -104,7 +110,7 @@ class MockmarkEmbed {
       )
         return;
       this.token = event.data.token;
-      sessionStorage.setItem(`mockmark.token.${this.config.projectKey}`, this.token);
+      try { sessionStorage.setItem(`mockmark.token.${this.config.projectKey}`, this.token); } catch {}
       void this.refresh();
     });
   }
@@ -137,7 +143,7 @@ class MockmarkEmbed {
         this.activeId = null;
         this.listOpen = false;
         this.draft = null;
-        sessionStorage.removeItem(`mockmark.token.${this.config.projectKey}`);
+        try { sessionStorage.removeItem(`mockmark.token.${this.config.projectKey}`); } catch {}
         this.render();
       }
     }
