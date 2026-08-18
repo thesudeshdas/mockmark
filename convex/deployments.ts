@@ -6,8 +6,8 @@ import { hashToken, randomToken } from "./lib/tokens";
 import { hostedPageMatchesPath } from "./lib/hostedRuntime";
 
 const MAX_FILES = 200;
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const MAX_TOTAL_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
+const MAX_TOTAL_BYTES = 150 * 1024 * 1024;
 const fileFields = {
   path: v.string(),
   contentType: v.string(),
