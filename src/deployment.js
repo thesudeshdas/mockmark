@@ -69,8 +69,11 @@ function validateDeploymentReferences(files) {
     if (type !== "text/html" && type !== "text/css") continue;
     const source = readFileSync(file.absolutePath, "utf8");
     const references = type === "text/html"
-      ? source.matchAll(/<(?:link|script)\b[^>]*?\b(?:href|src)\s*=\s*(["'])(.*?)\1/gi)
-      : source.matchAll(/url\(\s*(["']?)(.*?)\1\s*\)/gi);
+      ? [
+          ...source.matchAll(/\b(?:href|src|poster)\s*=\s*(["'])(.*?)\1/gi),
+          ...source.matchAll(/url\(\s*(["']?)(.*?)\1\s*\)/gi),
+        ]
+      : [...source.matchAll(/url\(\s*(["']?)(.*?)\1\s*\)/gi)];
     for (const match of references) validateLocalReference(file.path, match[2]);
   }
 }
