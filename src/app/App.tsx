@@ -10,6 +10,7 @@ import {
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { DeploymentBrowser } from "./DeploymentBrowser";
 
 export function App() {
   const params = new URL(location.href).searchParams;
@@ -512,9 +513,18 @@ function Project({
   const revokeToken = useMutation(api.tokens.revoke);
   const deleteThread = useMutation(api.publicApi.deleteThreadForDashboard);
   const deployments = useQuery(api.deployments.list, { projectId });
+  const [browsingDeploymentId, setBrowsingDeploymentId] = useState<Id<"mockDeployments"> | null>(null);
   const [issued, setIssued] = useState<{ token: string; kind: "installation" | "deployment" } | null>(null);
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
   if (!detail || !feedback || !deployments) return <Centered>Loading project…</Centered>;
+  if (browsingDeploymentId)
+    return (
+      <DeploymentBrowser
+        deploymentId={browsingDeploymentId}
+        projectId={projectId}
+        onBack={() => setBrowsingDeploymentId(null)}
+      />
+    );
   const canAdmin = detail.role === "admin";
   const threads = feedback.threads.filter(
     (thread) =>
@@ -630,7 +640,10 @@ function Project({
               <small>{deployment.fileCount} files · {new Date(deployment.createdAt).toLocaleString()}</small>
             </span>
             {deployment.completedAt && deployment.htmlPaths[0] ? (
-              <a href={hostedShareUrl(deployment.deploymentKey, deployment.htmlPaths[0])} target="_blank" rel="noreferrer">Open</a>
+              <span className="deployment-actions">
+                <a href={hostedShareUrl(deployment.deploymentKey, deployment.htmlPaths[0])} target="_blank" rel="noreferrer">Open</a>
+                <button onClick={() => setBrowsingDeploymentId(deployment._id)}>Browse files</button>
+              </span>
             ) : <small>Uploading</small>}
           </div>
         )) : <p className="muted">No hosted deployments yet.</p>}
