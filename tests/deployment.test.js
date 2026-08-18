@@ -41,11 +41,27 @@ test("rejects symlinks and deployments without HTML", (t) => {
 
 test("rejects local asset references that escape the mock directory", (t) => {
   const root = fixture(t);
-  put(root, "today/index.html", '<link rel="stylesheet" href="../../_theme.css"><h1>Today</h1>');
+  put(root, "today/index.html", [
+    '<link rel="stylesheet" href="../../_theme.css">',
+    '<img src="../../../assets/exercises/chest.webp">',
+    '<div style="background-image:url(../../../assets/onboarding/hero.png)"></div>',
+  ].join(""));
 
   assert.throws(
     () => collectDeploymentFiles(root),
     /today\/index\.html references \.\.\/\.\.\/_theme\.css outside the mock directory/,
+  );
+
+  put(root, "today/index.html", '<img src="../../../assets/exercises/chest.webp">');
+  assert.throws(
+    () => collectDeploymentFiles(root),
+    /today\/index\.html references \.\.\/\.\.\/\.\.\/assets\/exercises\/chest\.webp outside the mock directory/,
+  );
+
+  put(root, "today/index.html", '<div style="background-image:url(../../../assets/onboarding/hero.png)"></div>');
+  assert.throws(
+    () => collectDeploymentFiles(root),
+    /today\/index\.html references \.\.\/\.\.\/\.\.\/assets\/onboarding\/hero\.png outside the mock directory/,
   );
 });
 
