@@ -8,6 +8,7 @@ const file = (path: string, contentType: string): BrowserFile => ({
   conversations: 0,
   open: 0,
   resolved: 0,
+  pageIds: [],
 });
 
 describe("deployment file tree", () => {

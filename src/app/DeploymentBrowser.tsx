@@ -7,7 +7,7 @@ export type BrowserFile = {
   path: string;
   contentType: string;
   size: number;
-  pageId?: Id<"pages">;
+  pageIds: Id<"pages">[];
   conversations: number;
   open: number;
   resolved: number;
@@ -25,10 +25,14 @@ export function DeploymentBrowser({
   deploymentId,
   projectId,
   onBack,
+  onSettings,
+  historyMode = false,
 }: {
   deploymentId: Id<"mockDeployments">;
   projectId: Id<"projects">;
-  onBack: () => void;
+  onBack?: () => void;
+  onSettings?: () => void;
+  historyMode?: boolean;
 }) {
   const result = useQuery(api.deployments.browse, { deploymentId });
   const [selectedPath, setSelectedPath] = useState("");
@@ -41,7 +45,7 @@ export function DeploymentBrowser({
     ?? reviewableFiles[0];
   const feedback = useQuery(
     api.publicApi.feedbackForDashboard,
-    selectedFile?.pageId ? { projectId, pageId: selectedFile.pageId, unresolvedOnly: false } : "skip",
+    selectedFile?.pageIds.length ? { projectId, pageIds: selectedFile.pageIds, unresolvedOnly: false } : "skip",
   );
 
   if (!result) return <div className="centered">Loading deployment…</div>;
@@ -72,8 +76,8 @@ export function DeploymentBrowser({
   }
 
   return (
-    <section className="deployment-browser">
-      <header className="deployment-browser-head">
+    <section className={`deployment-browser ${historyMode ? "with-history-head" : ""}`}>
+      {historyMode ? <header className="deployment-browser-head">
         <div>
           <button className="back" onClick={onBack}>← Deployments</button>
           <p className="eyebrow">Hosted mock</p>
@@ -87,12 +91,12 @@ export function DeploymentBrowser({
           </span>
           <small>{htmlCount} mockups</small>
         </div>
-      </header>
+      </header> : null}
 
       <div className="deployment-browser-grid">
         <aside className="deployment-file-pane">
           <div className="deployment-pane-title">
-            <div><h2>Mockups</h2><span>{htmlCount} HTML pages</span></div>
+            <div><h2>Mockups</h2><span>{htmlCount} HTML pages · {deployment.commitSha?.slice(0, 8) || "current"}</span></div>
           </div>
           <label className="deployment-search">
             <span>⌕</span>
@@ -121,6 +125,7 @@ export function DeploymentBrowser({
               <h2>{selectedFile.path.split("/").at(-1)}</h2>
             </div>
             <div>
+              {onSettings ? <button onClick={onSettings}>Project settings</button> : null}
               <button onClick={copyLink}>{copied ? "✓ Copied" : "Copy link"}</button>
               <a className="deployment-open-button" href={shareUrl} target="_blank" rel="noreferrer">Open ↗</a>
             </div>

@@ -12,6 +12,8 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { DeploymentBrowser } from "./DeploymentBrowser";
 
+const DEPLOYMENT_HISTORY_ENABLED = false;
+
 export function App() {
   const params = new URL(location.href).searchParams;
   const authorizeProject = params.get("mockmark_authorize");
@@ -505,26 +507,49 @@ function Project({
   onBack: () => void;
 }) {
   const detail = useQuery(api.projects.detail, { projectId });
-  const feedback = useQuery(api.publicApi.feedbackForDashboard, {
-    projectId,
-    unresolvedOnly: false,
-  });
+  const [view, setView] = useState<"mocks" | "settings">("mocks");
+  const feedback = useQuery(
+    api.publicApi.feedbackForDashboard,
+    view === "settings" ? { projectId, unresolvedOnly: false } : "skip",
+  );
   const createToken = useAction(api.tokens.create);
   const revokeToken = useMutation(api.tokens.revoke);
   const deleteThread = useMutation(api.publicApi.deleteThreadForDashboard);
-  const deployments = useQuery(api.deployments.list, { projectId });
+  const latestDeployment = useQuery(api.deployments.latest, { projectId });
+  const deployments = useQuery(
+    api.deployments.list,
+    DEPLOYMENT_HISTORY_ENABLED ? { projectId } : "skip",
+  );
   const [browsingDeploymentId, setBrowsingDeploymentId] = useState<Id<"mockDeployments"> | null>(null);
   const [issued, setIssued] = useState<{ token: string; kind: "installation" | "deployment" } | null>(null);
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
-  if (!detail || !feedback || !deployments) return <Centered>Loading project…</Centered>;
+  if (!detail || latestDeployment === undefined) return <Centered>Loading project…</Centered>;
   if (browsingDeploymentId)
     return (
       <DeploymentBrowser
         deploymentId={browsingDeploymentId}
         projectId={projectId}
         onBack={() => setBrowsingDeploymentId(null)}
+        historyMode
       />
     );
+  if (view === "mocks" && latestDeployment)
+    return (
+      <DeploymentBrowser
+        deploymentId={latestDeployment._id}
+        projectId={projectId}
+        onSettings={() => setView("settings")}
+      />
+    );
+  if (view === "mocks")
+    return (
+      <section className="page">
+        <button className="back" onClick={onBack}>← Projects</button>
+        <Empty title="No mocks deployed" text="Deploy the repository mockDir to publish its HTML mockups." />
+        <button onClick={() => setView("settings")}>Project settings</button>
+      </section>
+    );
+  if (!feedback) return <Centered>Loading project settings…</Centered>;
   const canAdmin = detail.role === "admin";
   const threads = feedback.threads.filter(
     (thread) =>
@@ -534,12 +559,12 @@ function Project({
   const install = `npm install -D @thesudeshdas/mockmark\nnpx mockmark init ./mocks --project ${detail.project.projectKey} --convex-url ${import.meta.env.VITE_CONVEX_URL} --app-url ${location.origin}`;
   return (
     <section className="page">
-      <button className="back" onClick={onBack}>
-        ← Projects
+      <button className="back" onClick={() => latestDeployment ? setView("mocks") : onBack()}>
+        {latestDeployment ? "← Mocks" : "← Projects"}
       </button>
       <div className="page-head">
         <div>
-          <p className="eyebrow">Project</p>
+          <p className="eyebrow">Project settings</p>
           <h1>{detail.project.name}</h1>
           <p>
             {detail.pages.length} pages · {feedback.threads.length}{" "}
@@ -630,10 +655,10 @@ function Project({
           </div>
         </section>
       </div>
-      <section className="card token-list">
+      {DEPLOYMENT_HISTORY_ENABLED ? <section className="card token-list">
         <p className="eyebrow">Hosted mocks</p>
         <h2>Deployments</h2>
-        {deployments.length ? deployments.map((deployment) => (
+        {deployments?.length ? deployments.map((deployment) => (
           <div key={deployment._id}>
             <span>
               <b>{deployment.label || deployment.commitSha?.slice(0, 8) || "Mock deployment"}</b>
@@ -647,7 +672,7 @@ function Project({
             ) : <small>Uploading</small>}
           </div>
         )) : <p className="muted">No hosted deployments yet.</p>}
-      </section>
+      </section> : null}
       <section className="card token-list">
         <p className="eyebrow">Access</p>
         <h2>Project tokens</h2>

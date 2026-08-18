@@ -2,7 +2,7 @@
 import { createHash } from "node:crypto";
 import { convexTest } from "convex-test";
 import { describe, expect, test } from "vitest";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { matchesStorageMetadata } from "./deployments";
 import schema from "./schema";
 
@@ -36,7 +36,7 @@ async function seed(t: ReturnType<typeof convexTest>) {
       createdAt: 1,
       completedAt: 2,
     });
-    return { ownerId, reviewerId, outsiderId, projectId, siblingId, deploymentId, projectKey: `mmp_${"a".repeat(36)}`, siblingKey: `mmp_${"b".repeat(36)}` };
+    return { ownerId, reviewerId, outsiderId, projectId, siblingId, deploymentId, deployTokenId, projectKey: `mmp_${"a".repeat(36)}`, siblingKey: `mmp_${"b".repeat(36)}` };
   });
 }
 
@@ -83,6 +83,25 @@ describe("hosted mock deployments", () => {
     expect(result[0]).not.toHaveProperty("fileCount");
   });
 
+  test("latest returns only the newest completed mock library", async () => {
+    const t = convexTest(schema, modules);
+    const { ownerId, projectId } = await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("mockDeployments", {
+        projectId,
+        deploymentKey: "mmb_uploading",
+        fileCount: 1,
+        totalBytes: 12,
+        htmlPaths: ["draft.html"],
+        manifest: [{ path: "draft.html", contentType: "text/html", size: 12, sha256: "e".repeat(64) }],
+        createdByTokenId: (await ctx.db.query("accessTokens").withIndex("by_project", (q) => q.eq("projectId", projectId)).first())!._id,
+        createdAt: 3,
+      });
+    });
+
+    await expect(t.withIdentity({ subject: ownerId }).query(api.deployments.latest, { projectId })).resolves.toMatchObject({ deploymentKey: "mmb_hosted" });
+  });
+
   test("browses deployment-root files and includes zero-comment HTML pages", async () => {
     const t = convexTest(schema, modules);
     const { ownerId, projectId, deploymentId } = await seed(t);
@@ -119,12 +138,102 @@ describe("hosted mock deployments", () => {
           resolvedAt,
           deletedAt,
         });
+      const historicalPageId = await ctx.db.insert("pages", {
+        projectId,
+        pageKey: "hosted:mmb_older:today/index.html",
+        path: "today/index.html",
+        title: "Today old build",
+        lastSeenAt: 0,
+      });
+      await ctx.db.insert("threads", {
+        projectId,
+        pageId: historicalPageId,
+        x: 0.4,
+        y: 0.4,
+        viewportWidth: 1000,
+        viewportHeight: 800,
+        authorName: "Owner",
+        createdAt: 0,
+        updatedAt: 0,
+      });
     });
     const result = await t.withIdentity({ subject: ownerId }).query(api.deployments.browse, { deploymentId });
     expect(result.files.map((file) => file.path)).toEqual(["today/index.html", "today/states/empty.html"]);
-    expect(result.files[0]).toMatchObject({ conversations: 2, open: 1, resolved: 1 });
+    expect(result.files[0]).toMatchObject({ conversations: 3, open: 2, resolved: 1 });
+    expect(result.files[0].pageIds).toHaveLength(2);
     expect(result.files[1]).toMatchObject({ conversations: 0, open: 0, resolved: 0 });
     expect(result.files[1]).not.toHaveProperty("pageId");
+  });
+
+  test("completion prunes old deployment data but retains feedback conversations", async () => {
+    const t = convexTest(schema, modules);
+    const { projectId, projectKey, deploymentId, deployTokenId } = await seed(t);
+    const { newDeploymentId, pageId, threadId, messageId, newStorageId } = await t.run(async (ctx) => {
+      const oldStorageId = await ctx.storage.store(new Blob(["old mock html"]));
+      await ctx.db.insert("mockAssets", {
+        projectId,
+        deploymentId,
+        path: "index.html",
+        storageId: oldStorageId,
+        contentType: "text/html",
+        size: 13,
+        sha256: "b".repeat(64),
+        createdAt: 2,
+      });
+      const pageId = await ctx.db.insert("pages", {
+        projectId,
+        pageKey: "hosted:mmb_hosted:index.html",
+        path: "index.html",
+        title: "Index",
+        lastSeenAt: 2,
+      });
+      const threadId = await ctx.db.insert("threads", {
+        projectId,
+        pageId,
+        x: 0.5,
+        y: 0.5,
+        viewportWidth: 1000,
+        viewportHeight: 800,
+        authorName: "Owner",
+        createdAt: 2,
+        updatedAt: 2,
+      });
+      const messageId = await ctx.db.insert("messages", {
+        projectId,
+        threadId,
+        body: "Keep this conversation",
+        authorName: "Owner",
+        createdAt: 2,
+      });
+      const newStorageId = await ctx.storage.store(new Blob(["new mock html"]));
+      const newDeploymentId = await ctx.db.insert("mockDeployments", {
+        projectId,
+        deploymentKey: "mmb_current",
+        fileCount: 1,
+        totalBytes: 13,
+        htmlPaths: ["index.html"],
+        manifest: [{ path: "index.html", contentType: "text/html", size: 13, sha256: "c".repeat(64) }],
+        createdByTokenId: deployTokenId,
+        createdAt: 3,
+      });
+      return { newDeploymentId, pageId, threadId, messageId, newStorageId };
+    });
+
+    await t.mutation(internal.deployments.completeWithToken, {
+      tokenHash: hash(deployToken),
+      projectKey,
+      deploymentId: newDeploymentId,
+      assets: [{ path: "index.html", contentType: "text/html", size: 13, sha256: "c".repeat(64), storageId: newStorageId }],
+    });
+
+    await t.run(async (ctx) => {
+      expect(await ctx.db.get(deploymentId)).toBeNull();
+      expect(await ctx.db.query("mockAssets").withIndex("by_deployment", (q) => q.eq("deploymentId", deploymentId)).collect()).toEqual([]);
+      expect(await ctx.db.get(newDeploymentId)).toMatchObject({ completedAt: expect.any(Number) });
+      expect(await ctx.db.get(pageId)).not.toBeNull();
+      expect(await ctx.db.get(threadId)).not.toBeNull();
+      expect(await ctx.db.get(messageId)).not.toBeNull();
+    });
   });
 
   test("hosted gateway never serves without a valid member session", async () => {

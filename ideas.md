@@ -72,7 +72,9 @@ Open design work: define role inheritance, future-project behavior, bulk assignm
 
 ## Organize and rename hosted deployments
 
-**Status:** Idea
+**Status:** Disabled — keep the implementation for possible future use, but do not expose deployment history in the client dashboard.
+
+Mockmark now presents only the newest completed mock library. Superseded hosted assets and deployment records are pruned after a successful deploy to control storage cost. Feedback conversations remain attached to the project and HTML path, so redeploying the same mock retains its discussion without promising that old marker coordinates still match the changed layout.
 
 Make the hosted deployment list understandable as projects accumulate builds, without changing immutable deployment identities or breaking existing share URLs and feedback.
 
