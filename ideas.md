@@ -1,5 +1,25 @@
 # Ideas
 
+## Reposition feedback markers
+
+**Status:** Feature request
+
+Let reviewers drag an existing comment marker or region to a more accurate position on the mock without deleting or recreating its conversation.
+
+Requirements:
+
+- Support dragging point markers and selected regions within page bounds.
+- Preserve conversation identity, messages, reactions, resolution state, author, and original creation time.
+- Store updated normalized coordinates so placement remains stable across viewport sizes.
+- Distinguish opening a conversation from moving its marker; expose a clear move handle or move mode.
+- Optimistically update position, then restore the previous position if persistence fails.
+- Support touch and keyboard repositioning, not pointer dragging alone.
+- Restrict movement using explicit project-role and authorship rules.
+- Record who moved the marker and when in the project audit trail.
+- Handle concurrent moves deterministically and show the latest saved position.
+
+Open design work: who may move another reviewer's marker, whether resolved comments remain movable, keyboard step size, region resize versus move scope, and whether position history should be visible or only audited.
+
 ## Agent-managed mock workspace
 
 **Status:** Idea
