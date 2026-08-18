@@ -20,6 +20,26 @@ Goal: anyone can open one predictable entry point, understand available feature 
 
 Open design work: define default folder schema, navigation format, metadata, lifecycle rules, and agent instructions without forcing one structure onto every codebase.
 
+## Safer existing-mock discovery and adoption
+
+**Status:** Client requirement (Dryve)
+
+Make `mockmark init` distinguish canonical product mocks from agent artifacts and generated deployment copies before proposing migration. Dryve exposed the failure mode: `docs/mockups` is the canonical source, `.codex/mockups` contains agent artifacts, and `waitlist-site/public/mocks` contains generated copies. Treating all three as migration sources risks duplicate hosted content and broken references.
+
+Requirements:
+
+- Detect generated, build, deployment, and output directories; exclude agent and system folders by default.
+- Respect `.gitignore` plus configurable Mockmark ignore rules during discovery.
+- Detect source-versus-copy duplicates using paths and content rather than presenting each copy as independent mock work.
+- Let users interactively select discovered directories or individual files.
+- Offer **Adopt existing folder in place** so a canonical folder can be configured without moving files.
+- Require explicit selection of the canonical mock root when multiple plausible sources exist.
+- Provide a dry-run listing planned moves, exclusions and reasons, collisions, duplicate-copy handling, and reference updates.
+- Perform no filesystem mutations until the user explicitly confirms the reviewed plan.
+- Preserve hierarchy, avoid duplicate hosted copies, and never classify agent/system folders as product mocks by default.
+
+Open design work: ignore configuration format, duplicate-confidence thresholds, generated-copy signals, reference types eligible for automatic updates, and collision-resolution UX.
+
 ## Clear workspace-wide and project-only invitations
 
 **Status:** Idea
