@@ -62,7 +62,17 @@ describe("hosted mock deployments", () => {
     const valid = [{ path: "index.html", contentType: "text/html", size: 12, sha256: "a".repeat(64) }];
     await expect(t.action(api.deployments.begin, { token: deployToken, projectKey, files: valid })).resolves.toMatchObject({ deploymentKey: expect.stringMatching(/^mmb_/) });
     await expect(t.action(api.deployments.begin, { token: deployToken, projectKey, files: [{ ...valid[0], path: "../index.html" }] })).rejects.toThrow(/invalid or duplicate path/i);
-    await expect(t.action(api.deployments.begin, { token: deployToken, projectKey, files: [{ ...valid[0], size: 6 * 1024 * 1024 }] })).rejects.toThrow(/size limit/i);
+    await expect(t.action(api.deployments.begin, { token: deployToken, projectKey, files: [{ ...valid[0], size: 8 * 1024 * 1024 }] })).resolves.toMatchObject({ deploymentKey: expect.stringMatching(/^mmb_/) });
+    await expect(t.action(api.deployments.begin, { token: deployToken, projectKey, files: [{ ...valid[0], size: 16 * 1024 * 1024 }] })).rejects.toThrow(/size limit/i);
+    await expect(t.action(api.deployments.begin, {
+      token: deployToken,
+      projectKey,
+      files: Array.from({ length: 11 }, (_, index) => ({
+        ...valid[0],
+        path: `${index}.html`,
+        size: 14 * 1024 * 1024,
+      })),
+    })).rejects.toThrow(/total size limit/i);
   });
 
   test("share access requires explicit project membership", async () => {
