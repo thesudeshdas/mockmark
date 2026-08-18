@@ -36,19 +36,20 @@ export function DeploymentBrowser({
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [feedbackFilter, setFeedbackFilter] = useState<"all" | "open" | "resolved">("all");
   const [copied, setCopied] = useState(false);
-  const selectedFile = result?.files.find((file) => file.path === selectedPath)
-    ?? result?.files.find(isHtml)
-    ?? result?.files[0];
+  const reviewableFiles = result?.files.filter(isHtml) ?? [];
+  const selectedFile = reviewableFiles.find((file) => file.path === selectedPath)
+    ?? reviewableFiles[0];
   const feedback = useQuery(
     api.publicApi.feedbackForDashboard,
     selectedFile?.pageId ? { projectId, pageId: selectedFile.pageId, unresolvedOnly: false } : "skip",
   );
 
-  if (!result || !selectedFile) return <div className="centered">Loading deployment…</div>;
+  if (!result) return <div className="centered">Loading deployment…</div>;
+  if (!selectedFile) return <div className="centered">No HTML mockups in this deployment.</div>;
 
   const deployment = result.deployment;
-  const htmlCount = result.files.filter(isHtml).length;
-  const tree = buildTree(result.files, search);
+  const htmlCount = reviewableFiles.length;
+  const tree = buildTree(reviewableFiles, search);
   const shareUrl = hostedShareUrl(deployment.deploymentKey, selectedFile.path);
   const threads = (feedback?.threads ?? []).filter((thread) =>
     feedbackFilter === "all" || (feedbackFilter === "resolved" ? thread.resolvedAt : !thread.resolvedAt),
@@ -84,18 +85,18 @@ export function DeploymentBrowser({
             <b>Current build</b>
             <small>{deployment.commitSha?.slice(0, 8) || deployment.deploymentKey.slice(0, 12)}{deployment.branch ? ` · ${deployment.branch}` : ""}</small>
           </span>
-          <small>{result.files.length} files · {htmlCount} pages</small>
+          <small>{htmlCount} mockups</small>
         </div>
       </header>
 
       <div className="deployment-browser-grid">
         <aside className="deployment-file-pane">
           <div className="deployment-pane-title">
-            <div><h2>Files</h2><span>{result.files.length} files · {htmlCount} pages</span></div>
+            <div><h2>Mockups</h2><span>{htmlCount} HTML pages</span></div>
           </div>
           <label className="deployment-search">
             <span>⌕</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search files…" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search mockups…" />
           </label>
           <div className="deployment-tree">
             {tree.map((node) => (
@@ -109,7 +110,7 @@ export function DeploymentBrowser({
                 onSelect={setSelectedPath}
               />
             ))}
-            {!tree.length ? <p className="deployment-tree-empty">No matching files.</p> : null}
+            {!tree.length ? <p className="deployment-tree-empty">No matching mockups.</p> : null}
           </div>
         </aside>
 
@@ -119,25 +120,18 @@ export function DeploymentBrowser({
               <Breadcrumb path={selectedFile.path} label={label} />
               <h2>{selectedFile.path.split("/").at(-1)}</h2>
             </div>
-            {isHtml(selectedFile) ? (
-              <div>
-                <button onClick={copyLink}>{copied ? "✓ Copied" : "Copy link"}</button>
-                <a className="deployment-open-button" href={shareUrl} target="_blank" rel="noreferrer">Open ↗</a>
-              </div>
-            ) : null}
-          </header>
-          {isHtml(selectedFile) ? (
-            <div className="deployment-preview-stage">
-              <iframe key={selectedFile.path} src={shareUrl} title={`Preview ${selectedFile.path}`} />
+            <div>
+              <button onClick={copyLink}>{copied ? "✓ Copied" : "Copy link"}</button>
+              <a className="deployment-open-button" href={shareUrl} target="_blank" rel="noreferrer">Open ↗</a>
             </div>
-          ) : (
-            <AssetDetail file={selectedFile} />
-          )}
+          </header>
+          <div className="deployment-preview-stage">
+            <iframe key={selectedFile.path} src={shareUrl} title={`Preview ${selectedFile.path}`} />
+          </div>
         </main>
 
         <aside className="deployment-feedback-pane">
-          {isHtml(selectedFile) ? (
-            <>
+          <>
               <div className="deployment-feedback-title">
                 <div><h2>Feedback</h2><span>{selectedFile.conversations} conversations</span></div>
               </div>
@@ -166,10 +160,7 @@ export function DeploymentBrowser({
                   </div>
                 ) : null}
               </div>
-            </>
-          ) : (
-            <div className="deployment-asset-aside"><span>Supporting asset</span><p>Feedback belongs to reviewable HTML pages.</p></div>
-          )}
+          </>
         </aside>
       </div>
     </section>
@@ -205,12 +196,11 @@ function TreeRow({
     );
   }
   const file = node.file!;
-  const kind = fileKind(file);
   return (
     <button className={`deployment-file-row ${selectedPath === file.path ? "active" : ""}`} style={{ paddingLeft: 13 + depth * 16 }} onClick={() => onSelect(file.path)}>
-      <span className={`deployment-file-icon ${kind}`}>{fileIcon(kind)}</span>
-      <span><b>{node.name}</b><small>{kind === "html" ? "Reviewable page" : file.contentType.split(";", 1)[0]}</small></span>
-      {kind === "html" ? <span className="deployment-counts" title={`${file.conversations} conversations, ${file.open} open, ${file.resolved} resolved`}><i>{file.conversations}</i><i className="open">{file.open}</i><i className="resolved">{file.resolved}</i></span> : null}
+      <span className="deployment-file-icon html">H</span>
+      <span><b>{node.name}</b><small>Reviewable page</small></span>
+      <span className="deployment-counts" title={`${file.conversations} conversations, ${file.open} open, ${file.resolved} resolved`}><i>{file.conversations}</i><i className="open">{file.open}</i><i className="resolved">{file.resolved}</i></span>
     </button>
   );
 }
@@ -219,22 +209,11 @@ function Breadcrumb({ path, label }: { path: string; label: string }) {
   return <div className="deployment-breadcrumb"><span>{label}</span>{path.split("/").map((part) => <span key={part}><i>/</i>{part}</span>)}</div>;
 }
 
-function AssetDetail({ file }: { file: BrowserFile }) {
-  const kind = fileKind(file);
-  return (
-    <div className="deployment-asset-detail">
-      <span className={`deployment-file-icon ${kind}`}>{fileIcon(kind)}</span>
-      <h2>{file.path.split("/").at(-1)}</h2>
-      <p>{file.path}</p>
-      <dl><div><dt>Type</dt><dd>{file.contentType}</dd></div><div><dt>Size</dt><dd>{formatBytes(file.size)}</dd></div></dl>
-    </div>
-  );
-}
-
 export function buildTree(files: BrowserFile[], search: string): TreeNode[] {
   const root: TreeNode = { name: "", path: "", kind: "folder", children: [] };
   const term = search.trim().toLowerCase();
   for (const file of files) {
+    if (!isHtml(file)) continue;
     if (term && !file.path.toLowerCase().includes(term)) continue;
     const parts = file.path.split("/");
     let parent = root;
@@ -264,29 +243,6 @@ function countFiles(node: TreeNode): number {
 
 function isHtml(file: BrowserFile) {
   return file.contentType.split(";", 1)[0] === "text/html";
-}
-
-function fileKind(file: BrowserFile) {
-  const extension = file.path.split(".").at(-1)?.toLowerCase();
-  if (isHtml(file)) return "html";
-  if (extension === "css") return "css";
-  if (["js", "mjs", "json", "map"].includes(extension || "")) return "code";
-  if (["png", "jpg", "jpeg", "gif", "webp", "svg", "ico"].includes(extension || "")) return "image";
-  return "document";
-}
-
-function fileIcon(kind: string) {
-  if (kind === "html") return "H";
-  if (kind === "css") return "#";
-  if (kind === "code") return "JS";
-  if (kind === "image") return "▧";
-  return "≡";
-}
-
-function formatBytes(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function hostedShareUrl(deploymentKey: string, path: string) {

@@ -149,7 +149,18 @@ export const list = query({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     await requireProject(ctx, args.projectId);
-    return ctx.db.query("mockDeployments").withIndex("by_project", (q) => q.eq("projectId", args.projectId)).order("desc").take(30);
+    const deployments = await ctx.db.query("mockDeployments").withIndex("by_project", (q) => q.eq("projectId", args.projectId)).order("desc").take(30);
+    return deployments.map((deployment) => ({
+      _id: deployment._id,
+      deploymentKey: deployment.deploymentKey,
+      label: deployment.label,
+      branch: deployment.branch,
+      commitSha: deployment.commitSha,
+      pageCount: deployment.htmlPaths.length,
+      primaryHtmlPath: deployment.htmlPaths[0],
+      createdAt: deployment.createdAt,
+      completedAt: deployment.completedAt,
+    }));
   },
 });
 
@@ -162,9 +173,7 @@ export const browse = query({
     await requireProject(ctx, deployment.projectId);
 
     const files = await Promise.all(
-      deployment.manifest.map(async (file) => {
-        if (file.contentType.split(";", 1)[0] !== "text/html")
-          return { ...file, pageId: undefined, conversations: 0, open: 0, resolved: 0 };
+      deployment.manifest.filter((file) => file.contentType.split(";", 1)[0] === "text/html").map(async (file) => {
         const pageKey = hostedPageKey(deployment.deploymentKey, file.path);
         const page = await ctx.db
           .query("pages")
@@ -196,8 +205,6 @@ export const browse = query({
         label: deployment.label,
         branch: deployment.branch,
         commitSha: deployment.commitSha,
-        fileCount: deployment.fileCount,
-        totalBytes: deployment.totalBytes,
         createdAt: deployment.createdAt,
         completedAt: deployment.completedAt,
       },

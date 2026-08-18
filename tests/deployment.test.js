@@ -39,6 +39,16 @@ test("rejects symlinks and deployments without HTML", (t) => {
   assert.throws(() => collectDeploymentFiles(root), /Symlinks are not allowed/);
 });
 
+test("rejects local asset references that escape the mock directory", (t) => {
+  const root = fixture(t);
+  put(root, "today/index.html", '<link rel="stylesheet" href="../../_theme.css"><h1>Today</h1>');
+
+  assert.throws(
+    () => collectDeploymentFiles(root),
+    /today\/index\.html references \.\.\/\.\.\/_theme\.css outside the mock directory/,
+  );
+});
+
 test("creates project-hosted share URLs without exposing session credentials", () => {
   const url = shareUrl("https://mockmark.example", "mmb_build", "flows/home.html");
   assert.equal(url, "https://mockmark.example/?deployment=mmb_build&path=flows%2Fhome.html");

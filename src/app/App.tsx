@@ -637,11 +637,11 @@ function Project({
           <div key={deployment._id}>
             <span>
               <b>{deployment.label || deployment.commitSha?.slice(0, 8) || "Mock deployment"}</b>
-              <small>{deployment.fileCount} files · {new Date(deployment.createdAt).toLocaleString()}</small>
+              <small>{deployment.pageCount} mockups · {new Date(deployment.createdAt).toLocaleString()}</small>
             </span>
-            {deployment.completedAt && deployment.htmlPaths[0] ? (
+            {deployment.completedAt && deployment.primaryHtmlPath ? (
               <span className="deployment-actions">
-                <a href={hostedShareUrl(deployment.deploymentKey, deployment.htmlPaths[0])} target="_blank" rel="noreferrer">Open</a>
+                <a href={hostedShareUrl(deployment.deploymentKey, deployment.primaryHtmlPath)} target="_blank" rel="noreferrer">Open</a>
                 <button onClick={() => setBrowsingDeploymentId(deployment._id)}>Browse files</button>
               </span>
             ) : <small>Uploading</small>}

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
-import { extname, relative, resolve, sep } from "node:path";
+import { extname, posix, relative, resolve, sep } from "node:path";
 
 const CONTENT_TYPES = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -31,6 +31,7 @@ export function collectDeploymentFiles(mockDir) {
   if (!files.length) throw new Error(`Mock directory is empty: ${root}`);
   if (!files.some((file) => file.contentType === "text/html"))
     throw new Error("Mock deployment must contain at least one HTML file.");
+  validateDeploymentReferences(files);
   return files;
 }
 
@@ -60,6 +61,29 @@ function visit(root, directory, files) {
       sha256: createHash("sha256").update(body).digest("hex"),
     });
   }
+}
+
+function validateDeploymentReferences(files) {
+  for (const file of files) {
+    const type = file.contentType.split(";", 1)[0];
+    if (type !== "text/html" && type !== "text/css") continue;
+    const source = readFileSync(file.absolutePath, "utf8");
+    const references = type === "text/html"
+      ? source.matchAll(/<(?:link|script)\b[^>]*?\b(?:href|src)\s*=\s*(["'])(.*?)\1/gi)
+      : source.matchAll(/url\(\s*(["']?)(.*?)\1\s*\)/gi);
+    for (const match of references) validateLocalReference(file.path, match[2]);
+  }
+}
+
+function validateLocalReference(sourcePath, reference) {
+  const value = reference.trim();
+  if (!value || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(value)) return;
+  const clean = value.split(/[?#]/, 1)[0];
+  const target = clean.startsWith("/")
+    ? posix.normalize(clean.slice(1))
+    : posix.normalize(posix.join(posix.dirname(sourcePath), clean));
+  if (target === ".." || target.startsWith("../"))
+    throw new Error(`${sourcePath} references ${reference} outside the mock directory. Move supporting assets inside mockDir and update the reference.`);
 }
 
 function portable(path) { return path.split(sep).join("/"); }

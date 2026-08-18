@@ -640,21 +640,6 @@ button:hover {
   background: #fff0eb;
   color: #c44828;
 }
-.deployment-file-icon.code {
-  border-color: #e5d89b;
-  background: #fff8d8;
-  color: #816600;
-}
-.deployment-file-icon.image {
-  border-color: #bcdcc6;
-  background: #eaf7ee;
-  color: #337a50;
-}
-.deployment-file-icon.document {
-  border-color: #ddd9d0;
-  background: #f1f0ec;
-  color: #777269;
-}
 .deployment-counts {
   margin-left: auto;
   display: flex;
@@ -752,46 +737,6 @@ button:hover {
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 18px 55px #2f291a14;
-}
-.deployment-asset-detail {
-  flex: 1;
-  display: grid;
-  place-items: center;
-  align-content: center;
-  gap: 9px;
-  background: #edede9;
-}
-.deployment-asset-detail .deployment-file-icon {
-  width: 55px;
-  height: 62px;
-  font-size: 15px;
-}
-.deployment-asset-detail h2,
-.deployment-asset-detail p {
-  margin: 0;
-}
-.deployment-asset-detail p {
-  color: #756e63;
-  font-size: 12px;
-}
-.deployment-asset-detail dl {
-  min-width: 300px;
-  margin-top: 15px;
-  padding: 14px 18px;
-  border: 1px solid #ddd9d0;
-  border-radius: 10px;
-  background: #fff;
-}
-.deployment-asset-detail dl div {
-  display: flex;
-  justify-content: space-between;
-  padding: 7px 0;
-}
-.deployment-asset-detail dt {
-  color: #756e63;
-}
-.deployment-asset-detail dd {
-  margin: 0;
 }
 .deployment-feedback-pane {
   display: flex;
@@ -899,21 +844,10 @@ button:hover {
   background: #eaf7ef;
   color: #288251;
 }
-.deployment-no-feedback p,
-.deployment-asset-aside p {
+.deployment-no-feedback p {
   margin: 0;
   color: #756e63;
   font-size: 11px;
-}
-.deployment-asset-aside {
-  padding: 28px 20px;
-}
-.deployment-asset-aside span {
-  font-weight: 700;
-}
-.deployment-asset-aside p {
-  margin-top: 7px;
-  line-height: 1.5;
 }
 @media (max-width: 1050px) {
   .deployment-browser-grid {

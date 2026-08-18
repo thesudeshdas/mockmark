@@ -20,9 +20,11 @@ describe("deployment file tree", () => {
 
   test("uses manifest paths as deployment-root hierarchy", () => {
     const tree = buildTree(files, "");
-    expect(tree.map((node) => node.name)).toEqual(["shared", "today"]);
+    expect(tree.map((node) => node.name)).toEqual(["today"]);
     expect(tree.flatMap((node) => node.children.map((child) => child.path))).toContain("today/index.html");
     expect(JSON.stringify(tree)).not.toContain("docs/mockups");
+    expect(JSON.stringify(tree)).not.toContain("app.css");
+    expect(JSON.stringify(tree)).not.toContain("logo.svg");
   });
 
   test("keeps matching files under their ancestors during search", () => {
