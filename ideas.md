@@ -1,5 +1,24 @@
 # Ideas
 
+## Send invitations by email with Resend
+
+**Status:** Idea
+
+Integrate Resend so workspace and project invitations are delivered by email instead of relying on manually shared invite links.
+
+Requirements:
+
+- Send branded invitation emails for workspace and project invites.
+- Include inviter, workspace, project, role, and invitation scope so recipients know what access they are accepting.
+- Use short-lived, single-use invite tokens; never expose service credentials or reusable access tokens.
+- Track pending, delivered, bounced, failed, accepted, expired, and revoked invitation states.
+- Let authorized members resend or revoke pending invitations without creating duplicate active invites.
+- Handle provider errors and retries without sending duplicate emails.
+- Configure sender identity, reply-to address, and Resend API credentials through secure environment configuration.
+- Record invite creation, delivery attempts, resend, acceptance, expiry, and revocation in the audit trail.
+
+Open design work: sender domain and branding, invite expiry duration, resend limits, bounce handling, email templates, webhook verification, and behavior when an invited email already belongs to a member.
+
 ## Reposition feedback markers
 
 **Status:** Feature request
