@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { audit, requireProject } from "./lib/authz";
 import { hashToken, randomToken } from "./lib/tokens";
 import { hostedPageMatchesPath } from "./lib/hostedRuntime";
+import { ensureMockRecords } from "./mockLifecycle";
 
 const MAX_FILES = 200;
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
@@ -132,6 +133,7 @@ export const completeWithToken = internalMutation({
         createdAt: Date.now(),
       });
     }
+    await ensureMockRecords(ctx, project._id, deployment.htmlPaths);
     await ctx.db.patch(deployment._id, { completedAt: Date.now() });
     await ctx.db.patch(token._id, { lastUsedAt: Date.now() });
     const prunedDeployments = await pruneSupersededDeployments(ctx, project._id, deployment._id);
@@ -217,11 +219,12 @@ export const browse = query({
     const deployment = await ctx.db.get(args.deploymentId);
     if (!deployment || !deployment.completedAt)
       throw new ConvexError("Hosted deployment not found.");
-    await requireProject(ctx, deployment.projectId);
-    const projectPages = await ctx.db
-      .query("pages")
-      .withIndex("by_project", (q) => q.eq("projectId", deployment.projectId))
-      .collect();
+    const { membership } = await requireProject(ctx, deployment.projectId);
+    const [projectPages, mockRecords] = await Promise.all([
+      ctx.db.query("pages").withIndex("by_project", (q) => q.eq("projectId", deployment.projectId)).collect(),
+      ctx.db.query("mockRecords").withIndex("by_project", (q) => q.eq("projectId", deployment.projectId)).collect(),
+    ]);
+    const recordsByPath = new Map(mockRecords.map((record) => [record.path, record]));
 
     const files = await Promise.all(
       deployment.manifest.filter((file) => file.contentType.split(";", 1)[0] === "text/html").map(async (file) => {
@@ -233,6 +236,7 @@ export const browse = query({
         const open = visible.filter((thread) => !thread.resolvedAt).length;
         return {
           ...file,
+          status: recordsByPath.get(file.path)?.status ?? "mocking",
           pageIds: pages.map((page) => page._id),
           conversations: visible.length,
           open,
@@ -250,6 +254,7 @@ export const browse = query({
         createdAt: deployment.createdAt,
         completedAt: deployment.completedAt,
       },
+      projectRole: membership.role,
       files,
     };
   },
