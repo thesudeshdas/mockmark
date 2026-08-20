@@ -3,6 +3,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist-web",
   "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
   "headers": [
     {
       "source": "/embed.js",

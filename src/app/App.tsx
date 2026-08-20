@@ -11,6 +11,10 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { DeploymentBrowser } from "./DeploymentBrowser";
+import {
+  parseDashboardPath,
+  replaceDashboardPath,
+} from "./dashboardRoute";
 
 const DEPLOYMENT_HISTORY_ENABLED = false;
 
@@ -166,16 +170,18 @@ function Workspace() {
   const bootstrap = useMutation(api.workspaces.bootstrap);
   const createWorkspace = useMutation(api.workspaces.create);
   const { signOut } = useAuthActions();
-  const [selectedOrg, setSelectedOrg] = useState<Id<"organizations"> | null>(
-    null,
-  );
-  const [selectedProject, setSelectedProject] = useState<Id<"projects"> | null>(
-    null,
+  const [route, setRoute] = useState(() =>
+    parseDashboardPath(location.pathname),
   );
   const acceptInvitation = useMutation(api.workspaces.acceptInvitation);
   const acceptProjectInvitation = useMutation(api.projectAccess.acceptInvitation);
   const [inviteStatus, setInviteStatus] = useState("");
   const inviteHandled = useRef(false);
+  useEffect(() => {
+    const restoreRoute = () => setRoute(parseDashboardPath(location.pathname));
+    addEventListener("popstate", restoreRoute);
+    return () => removeEventListener("popstate", restoreRoute);
+  }, []);
   useEffect(() => {
     const params = new URL(location.href).searchParams;
     const projectInvite = params.get("project_invite");
@@ -197,10 +203,32 @@ function Workspace() {
       })
       .catch((reason) => setInviteStatus(errorMessage(reason)));
   }, [acceptInvitation, acceptProjectInvitation]);
-  const activeOrg = selectedOrg ?? workspaces?.[0]?.organization?._id ?? null;
+  const routedWorkspace = workspaces?.find(
+    (item) => item.organization?._id === route.organizationId,
+  );
+  const activeOrg =
+    routedWorkspace?.organization?._id ??
+    workspaces?.[0]?.organization?._id ??
+    null;
+  const selectedProject =
+    routedWorkspace && route.projectId
+      ? (route.projectId as Id<"projects">)
+      : null;
   const activeRole = workspaces?.find(
     (item) => item.organization?._id === activeOrg,
   )?.membership.role;
+  const navigate = (
+    organizationId: Id<"organizations"> | null,
+    projectId: Id<"projects"> | null = null,
+  ) => {
+    const url = replaceDashboardPath(
+      new URL(location.href),
+      organizationId,
+      projectId,
+    );
+    history.pushState(history.state, "", url);
+    setRoute({ organizationId, projectId });
+  };
   if (workspaces === undefined) return <Centered>Loading workspace…</Centered>;
   if (!workspaces.length)
     return (
@@ -220,10 +248,7 @@ function Workspace() {
               <button
                 className={activeOrg === organization._id ? "active" : ""}
                 key={organization._id}
-                onClick={() => {
-                  setSelectedOrg(organization._id);
-                  setSelectedProject(null);
-                }}
+                onClick={() => navigate(organization._id)}
               >
                 {organization.name}
               </button>
@@ -236,8 +261,7 @@ function Workspace() {
             const name = prompt("Workspace name");
             if (!name) return;
             void createWorkspace({ name }).then((organizationId) => {
-              setSelectedOrg(organizationId);
-              setSelectedProject(null);
+              navigate(organizationId);
             });
           }}
         >
@@ -255,12 +279,12 @@ function Workspace() {
           selectedProject ? (
             <Project
               projectId={selectedProject}
-              onBack={() => setSelectedProject(null)}
+              onBack={() => navigate(activeOrg)}
             />
           ) : (
             <ProjectList
               organizationId={activeOrg}
-              onSelect={setSelectedProject}
+              onSelect={(projectId) => navigate(activeOrg, projectId)}
               canAdmin={activeRole === "owner" || activeRole === "admin"}
             />
           )
