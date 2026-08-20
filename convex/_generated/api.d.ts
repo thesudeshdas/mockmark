@@ -16,6 +16,7 @@ import type * as lib_hostedRuntime from "../lib/hostedRuntime.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_tokens from "../lib/tokens.js";
 import type * as lib_validation from "../lib/validation.js";
+import type * as mockLifecycle from "../mockLifecycle.js";
 import type * as previewSessions from "../previewSessions.js";
 import type * as projectAccess from "../projectAccess.js";
 import type * as projects from "../projects.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   "lib/rateLimit": typeof lib_rateLimit;
   "lib/tokens": typeof lib_tokens;
   "lib/validation": typeof lib_validation;
+  mockLifecycle: typeof mockLifecycle;
   previewSessions: typeof previewSessions;
   projectAccess: typeof projectAccess;
   projects: typeof projects;

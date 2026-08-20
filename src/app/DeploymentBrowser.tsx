@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
@@ -11,7 +11,22 @@ export type BrowserFile = {
   conversations: number;
   open: number;
   resolved: number;
+  status: MockStatus;
 };
+
+export type MockStatus = "mocking" | "ready_to_review" | "in_review" | "reviewed" | "archived";
+export type MockStatusFilter = "active" | "all" | MockStatus;
+
+export const MOCK_STATUS_LABELS: Record<MockStatus, string> = {
+  mocking: "Mocking",
+  ready_to_review: "Ready to review",
+  in_review: "In review",
+  reviewed: "Reviewed",
+  archived: "Archived",
+};
+
+const MOCK_STATUSES = Object.keys(MOCK_STATUS_LABELS) as MockStatus[];
+const ACTIVE_STATUSES = new Set<MockStatus>(["mocking", "ready_to_review", "in_review"]);
 
 type TreeNode = {
   name: string;
@@ -39,26 +54,32 @@ export function DeploymentBrowser({
   const [search, setSearch] = useState("");
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [feedbackFilter, setFeedbackFilter] = useState<"all" | "open" | "resolved">("all");
+  const [statusFilter, setStatusFilter] = useState<MockStatusFilter>("active");
   const [copied, setCopied] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const [changingStatus, setChangingStatus] = useState(false);
+  const setMockStatus = useMutation(api.mockLifecycle.setStatus);
   const reviewableFiles = result?.files.filter(isHtml) ?? [];
-  const selectedFile = reviewableFiles.find((file) => file.path === selectedPath)
-    ?? reviewableFiles[0];
+  const filteredFiles = reviewableFiles.filter((file) => matchesStatusFilter(file.status, statusFilter));
+  const selectedFile = filteredFiles.find((file) => file.path === selectedPath)
+    ?? filteredFiles[0];
   const feedback = useQuery(
     api.publicApi.feedbackForDashboard,
     selectedFile?.pageIds.length ? { projectId, pageIds: selectedFile.pageIds, unresolvedOnly: false } : "skip",
   );
 
   if (!result) return <div className="centered">Loading deployment…</div>;
-  if (!selectedFile) return <div className="centered">No HTML mockups in this deployment.</div>;
+  if (!reviewableFiles.length) return <div className="centered">No HTML mockups in this deployment.</div>;
 
   const deployment = result.deployment;
   const htmlCount = reviewableFiles.length;
-  const tree = buildTree(reviewableFiles, search);
-  const shareUrl = hostedShareUrl(deployment.deploymentKey, selectedFile.path);
+  const tree = buildTree(filteredFiles, search);
+  const shareUrl = selectedFile ? hostedShareUrl(deployment.deploymentKey, selectedFile.path) : "";
   const threads = (feedback?.threads ?? []).filter((thread) =>
     feedbackFilter === "all" || (feedbackFilter === "resolved" ? thread.resolvedAt : !thread.resolvedAt),
   );
   const label = deployment.label || deployment.commitSha?.slice(0, 8) || "Mock deployment";
+  const statusCounts = countMockStatuses(reviewableFiles);
 
   function toggleFolder(path: string) {
     setCollapsed((current) => {
@@ -70,9 +91,23 @@ export function DeploymentBrowser({
   }
 
   function copyLink() {
+    if (!shareUrl) return;
     void navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  async function changeMockStatus(status: MockStatus) {
+    if (!selectedFile) return;
+    setStatusError("");
+    setChangingStatus(true);
+    try {
+      await setMockStatus({ projectId, path: selectedFile.path, status });
+    } catch (reason) {
+      setStatusError(errorMessage(reason));
+    } finally {
+      setChangingStatus(false);
+    }
   }
 
   return (
@@ -98,6 +133,16 @@ export function DeploymentBrowser({
           <div className="deployment-pane-title">
             <div><h2>Mockups</h2><span>{htmlCount} HTML pages · {deployment.commitSha?.slice(0, 8) || "current"}</span></div>
           </div>
+          <label className="deployment-status-filter">
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as MockStatusFilter)}>
+              <option value="active">Active ({countActiveStatuses(statusCounts)})</option>
+              <option value="all">All ({htmlCount})</option>
+              {MOCK_STATUSES.map((status) => (
+                <option value={status} key={status}>{MOCK_STATUS_LABELS[status]} ({statusCounts[status]})</option>
+              ))}
+            </select>
+          </label>
           <label className="deployment-search">
             <span>⌕</span>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search mockups…" />
@@ -108,7 +153,7 @@ export function DeploymentBrowser({
                 key={node.path}
                 node={node}
                 depth={0}
-                selectedPath={selectedFile.path}
+                selectedPath={selectedFile?.path ?? ""}
                 collapsed={collapsed}
                 onToggle={toggleFolder}
                 onSelect={setSelectedPath}
@@ -119,12 +164,19 @@ export function DeploymentBrowser({
         </aside>
 
         <main className="deployment-preview-pane">
+          {selectedFile ? <>
           <header className="deployment-preview-head">
             <div>
               <Breadcrumb path={selectedFile.path} label={label} />
               <h2>{selectedFile.path.split("/").at(-1)}</h2>
             </div>
             <div>
+              <MockStatusControl
+                status={selectedFile.status}
+                role={result.projectRole}
+                disabled={changingStatus}
+                onChange={(status) => void changeMockStatus(status)}
+              />
               {onSettings ? <button onClick={onSettings}>Project settings</button> : null}
               <button onClick={copyLink}>{copied ? "✓ Copied" : "Copy link"}</button>
               <a className="deployment-open-button" href={shareUrl} target="_blank" rel="noreferrer">Open ↗</a>
@@ -133,10 +185,12 @@ export function DeploymentBrowser({
           <div className="deployment-preview-stage">
             <iframe key={selectedFile.path} src={shareUrl} title={`Preview ${selectedFile.path}`} />
           </div>
+          {statusError ? <p className="deployment-status-error">{statusError}</p> : null}
+          </> : <div className="deployment-filter-empty"><b>No matching mocks</b><span>Choose another lifecycle status.</span></div>}
         </main>
 
         <aside className="deployment-feedback-pane">
-          <>
+          {selectedFile ? <>
               <div className="deployment-feedback-title">
                 <div><h2>Feedback</h2><span>{selectedFile.conversations} conversations</span></div>
               </div>
@@ -165,7 +219,7 @@ export function DeploymentBrowser({
                   </div>
                 ) : null}
               </div>
-          </>
+          </> : <div className="deployment-filter-empty"><span>Feedback appears after selecting a mock.</span></div>}
         </aside>
       </div>
     </section>
@@ -204,10 +258,69 @@ function TreeRow({
   return (
     <button className={`deployment-file-row ${selectedPath === file.path ? "active" : ""}`} style={{ paddingLeft: 13 + depth * 16 }} onClick={() => onSelect(file.path)}>
       <span className="deployment-file-icon html">H</span>
-      <span><b>{node.name}</b><small>Reviewable page</small></span>
+      <span><b>{node.name}</b><small><i className={`mock-status-badge ${file.status}`}>{MOCK_STATUS_LABELS[file.status]}</i></small></span>
       <span className="deployment-counts" title={`${file.conversations} conversations, ${file.open} open, ${file.resolved} resolved`}><i>{file.conversations}</i><i className="open">{file.open}</i><i className="resolved">{file.resolved}</i></span>
     </button>
   );
+}
+
+function MockStatusControl({
+  status,
+  role,
+  disabled,
+  onChange,
+}: {
+  status: MockStatus;
+  role: "admin" | "commenter" | "viewer";
+  disabled: boolean;
+  onChange: (status: MockStatus) => void;
+}) {
+  const options = availableManualStatuses(role, status);
+  if (!options.length)
+    return <span className={`mock-status-badge prominent ${status}`}>{MOCK_STATUS_LABELS[status]}</span>;
+  return (
+    <label className="mock-status-control">
+      <span>Status</span>
+      <select
+        value={status}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value as MockStatus)}
+      >
+        {!options.includes(status) ? <option value={status} disabled>{MOCK_STATUS_LABELS[status]}</option> : null}
+        {options.map((option) => <option value={option} key={option}>{MOCK_STATUS_LABELS[option]}</option>)}
+      </select>
+    </label>
+  );
+}
+
+export function availableManualStatuses(
+  role: "admin" | "commenter" | "viewer",
+  current: MockStatus,
+) {
+  if (role === "viewer" || (current === "archived" && role !== "admin")) return [];
+  return role === "admin"
+    ? (["mocking", "ready_to_review", "reviewed", "archived"] as MockStatus[])
+    : (["mocking", "ready_to_review"] as MockStatus[]);
+}
+
+export function matchesStatusFilter(status: MockStatus, filter: MockStatusFilter) {
+  return filter === "all" || (filter === "active" ? ACTIVE_STATUSES.has(status) : status === filter);
+}
+
+function countMockStatuses(files: BrowserFile[]) {
+  const counts: Record<MockStatus, number> = {
+    mocking: 0,
+    ready_to_review: 0,
+    in_review: 0,
+    reviewed: 0,
+    archived: 0,
+  };
+  for (const file of files) counts[file.status] += 1;
+  return counts;
+}
+
+function countActiveStatuses(counts: Record<MockStatus, number>) {
+  return counts.mocking + counts.ready_to_review + counts.in_review;
 }
 
 function Breadcrumb({ path, label }: { path: string; label: string }) {
@@ -255,4 +368,8 @@ function hostedShareUrl(deploymentKey: string, path: string) {
   url.searchParams.set("deployment", deploymentKey);
   url.searchParams.set("path", path);
   return url.toString();
+}
+
+function errorMessage(reason: unknown) {
+  return reason instanceof Error ? reason.message : "Status could not be updated.";
 }

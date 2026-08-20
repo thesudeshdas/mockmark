@@ -137,6 +137,22 @@ export default defineSchema({
   })
     .index("by_deployment", ["deploymentId"])
     .index("by_deployment_path", ["deploymentId", "path"]),
+  mockRecords: defineTable({
+    projectId: v.id("projects"),
+    path: v.string(),
+    status: v.union(
+      v.literal("mocking"),
+      v.literal("ready_to_review"),
+      v.literal("in_review"),
+      v.literal("reviewed"),
+      v.literal("archived"),
+    ),
+    statusChangedBy: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_path", ["projectId", "path"]),
   memberPreviewSessions: defineTable({
     projectId: v.id("projects"),
     userId: v.id("users"),

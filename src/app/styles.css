@@ -19,7 +19,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 button {
@@ -578,6 +579,26 @@ button:hover {
   background: transparent;
   font-size: 12px;
 }
+.deployment-status-filter {
+  margin: 0 6px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #756e63;
+  font-size: 10px;
+  font-weight: 700;
+}
+.deployment-status-filter select,
+.mock-status-control select {
+  min-width: 0;
+  border: 1px solid #ded9cf;
+  border-radius: 8px;
+  background: #fff;
+  color: #24221f;
+  padding: 7px 8px;
+  font-size: 10px;
+}
 .deployment-tree {
   font-size: 11px;
 }
@@ -623,6 +644,39 @@ button:hover {
 }
 .deployment-file-row small {
   color: #827d73;
+  font-size: 9px;
+}
+.mock-status-badge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #efede7;
+  color: #686259;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.mock-status-badge.ready_to_review {
+  background: #fff4d9;
+  color: #8a6414;
+}
+.mock-status-badge.in_review {
+  background: #e8f0ff;
+  color: #3563a5;
+}
+.mock-status-badge.reviewed {
+  background: #eaf7ef;
+  color: #288251;
+}
+.mock-status-badge.archived {
+  background: #ecebea;
+  color: #77716a;
+}
+.mock-status-badge.prominent {
+  padding: 6px 9px;
   font-size: 9px;
 }
 .deployment-file-icon {
@@ -672,6 +726,7 @@ button:hover {
   text-align: center;
 }
 .deployment-preview-pane {
+  position: relative;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -699,6 +754,35 @@ button:hover {
 .deployment-preview-head > div:last-child {
   display: flex;
   gap: 7px;
+}
+.mock-status-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #756e63;
+  font-size: 9px;
+  font-weight: 700;
+}
+.deployment-status-error {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  margin: 0;
+  max-width: 360px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: #fff0ed;
+  color: #9d2f1c;
+  font-size: 11px;
+}
+.deployment-filter-empty {
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  color: #756e63;
+  text-align: center;
+  font-size: 12px;
 }
 .deployment-preview-head button,
 .deployment-open-button {

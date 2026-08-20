@@ -243,6 +243,7 @@ describe("hosted mock deployments", () => {
       expect(await ctx.db.get(pageId)).not.toBeNull();
       expect(await ctx.db.get(threadId)).not.toBeNull();
       expect(await ctx.db.get(messageId)).not.toBeNull();
+      await expect(ctx.db.query("mockRecords").withIndex("by_project_path", (q) => q.eq("projectId", projectId).eq("path", "index.html")).unique()).resolves.toMatchObject({ status: "mocking" });
     });
   });
 

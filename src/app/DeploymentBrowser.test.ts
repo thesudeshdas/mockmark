@@ -1,5 +1,10 @@
 import { describe, expect, test } from "vitest";
-import { buildTree, type BrowserFile } from "./DeploymentBrowser";
+import {
+  availableManualStatuses,
+  buildTree,
+  matchesStatusFilter,
+  type BrowserFile,
+} from "./DeploymentBrowser";
 
 const file = (path: string, contentType: string): BrowserFile => ({
   path,
@@ -8,7 +13,29 @@ const file = (path: string, contentType: string): BrowserFile => ({
   conversations: 0,
   open: 0,
   resolved: 0,
+  status: "mocking",
   pageIds: [],
+});
+
+describe("mock lifecycle controls", () => {
+  test("keeps active work separate from completed mocks", () => {
+    expect(matchesStatusFilter("mocking", "active")).toBe(true);
+    expect(matchesStatusFilter("in_review", "active")).toBe(true);
+    expect(matchesStatusFilter("reviewed", "active")).toBe(false);
+    expect(matchesStatusFilter("archived", "all")).toBe(true);
+  });
+
+  test("exposes only role-allowed manual transitions", () => {
+    expect(availableManualStatuses("viewer", "mocking")).toEqual([]);
+    expect(availableManualStatuses("commenter", "in_review")).toEqual(["mocking", "ready_to_review"]);
+    expect(availableManualStatuses("commenter", "archived")).toEqual([]);
+    expect(availableManualStatuses("admin", "archived")).toEqual([
+      "mocking",
+      "ready_to_review",
+      "reviewed",
+      "archived",
+    ]);
+  });
 });
 
 describe("deployment file tree", () => {

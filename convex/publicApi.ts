@@ -11,6 +11,11 @@ import { hashToken } from "./lib/tokens";
 import { consumeRateLimit } from "./lib/rateLimit";
 import { hostedPageMatchesPath } from "./lib/hostedRuntime";
 import {
+  markMockInReview,
+  mockPathFromPageKey,
+  restoreReadyWhenReviewEmpty,
+} from "./mockLifecycle";
+import {
   ALLOWED_REACTIONS,
   cleanBody,
   cleanText,
@@ -40,7 +45,7 @@ export const deleteThreadForDashboard = mutation({
   handler: async (ctx, args) => {
     const thread = await ctx.db.get(args.threadId);
     if (!thread || thread.deletedAt) throw new ConvexError("Thread not found.");
-    const { project, userId } = await requireProject(
+    const { project, userId, user } = await requireProject(
       ctx,
       thread.projectId,
       "admin",
@@ -49,6 +54,15 @@ export const deleteThreadForDashboard = mutation({
       deletedAt: Date.now(),
       updatedAt: Date.now(),
     });
+    const page = await ctx.db.get(thread.pageId);
+    const mockPath = page ? mockPathFromPageKey(page.pageKey) : null;
+    if (mockPath)
+      await restoreReadyWhenReviewEmpty(ctx, {
+        project,
+        path: mockPath,
+        actorUserId: userId,
+        actorName: user.name,
+      });
     await audit(ctx, {
       organizationId: project.organizationId,
       projectId: project._id,
@@ -287,6 +301,14 @@ export const createThreadWithToken = internalMutation({
       body,
       createdAt: now,
     });
+    const mockPath = mockPathFromPageKey(page.pageKey);
+    if (mockPath)
+      await markMockInReview(ctx, {
+        project: access.project,
+        path: mockPath,
+        actorUserId: access.user._id,
+        actorName: access.user.name,
+      });
     await addMentions(
       ctx,
       access.project.organizationId,
