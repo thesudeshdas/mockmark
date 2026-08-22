@@ -437,9 +437,12 @@ function Team({
   canAdmin: boolean;
 }) {
   const members = useQuery(api.workspaces.members, { organizationId });
-  const invite = useMutation(api.workspaces.invite);
+  const invitations = useQuery(api.workspaces.invitations, canAdmin ? { organizationId } : "skip");
+  const requestInvitation = useMutation(api.workspaces.requestInvitation);
+  const resendInvitation = useMutation(api.workspaces.resendInvitation);
+  const revokeInvitation = useMutation(api.workspaces.revokeInvitation);
   const removeMember = useMutation(api.workspaces.removeMember);
-  const [issued, setIssued] = useState("");
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   return (
     <section className="team-section">
@@ -477,16 +480,14 @@ function Team({
             const data = new FormData(form);
             const rawToken = randomKey("mmv");
             try {
-              await invite({
+              await requestInvitation({
                 organizationId,
                 email: String(data.get("email")),
                 role: String(data.get("role")) as
                   "admin" | "commenter" | "viewer",
-                tokenHash: await sha256(rawToken),
+                rawToken,
               });
-              setIssued(
-                `${location.origin}/?invite=${encodeURIComponent(rawToken)}`,
-              );
+              setNotice("Invitation email queued.");
               form.reset();
             } catch (reason) {
               setError(errorMessage(reason));
@@ -503,21 +504,25 @@ function Team({
             </select>
           </label>
           <button className="primary" type="submit">
-            Create invite link
+            Send invitation
           </button>
-          {issued ? (
-            <Notice tone="success">
-              <code>{issued}</code>
-              <button
-                type="button"
-                onClick={() => void navigator.clipboard.writeText(issued)}
-              >
-                Copy
-              </button>
-            </Notice>
-          ) : null}
+          {notice ? <Notice tone="success">{notice}</Notice> : null}
           {error ? <Notice tone="error">{error}</Notice> : null}
         </form>
+      ) : null}
+      {canAdmin && invitations?.length ? (
+        <div className="card invitation-list">
+          <h3>Invitations</h3>
+          {invitations.map((invitation) => (
+            <div key={invitation._id}>
+              <span><b>{invitation.email}</b><small>{invitation.role} · {invitation.status} · {invitation.deliveryAttemptCount} attempt{invitation.deliveryAttemptCount === 1 ? "" : "s"}</small>{invitation.lastDeliveryError ? <small className="invitation-error">{invitation.lastDeliveryError}</small> : null}</span>
+              {!invitation.acceptedAt && !invitation.revokedAt ? <span className="member-actions">
+                <button onClick={() => void resendInvitation({ invitationId: invitation._id, rawToken: randomKey("mmv") }).catch((reason) => setError(errorMessage(reason)))}>Resend</button>
+                <button onClick={() => { if (confirm(`Revoke invitation for ${invitation.email}?`)) void revokeInvitation({ invitationId: invitation._id }).catch((reason) => setError(errorMessage(reason))); }}>Revoke</button>
+              </span> : null}
+            </div>
+          ))}
+        </div>
       ) : null}
     </section>
   );
@@ -788,13 +793,16 @@ function ProjectTeam({
   canAdmin: boolean;
 }) {
   const members = useQuery(api.projectAccess.members, { projectId });
-  const invite = useMutation(api.projectAccess.invite);
+  const invitations = useQuery(api.projectAccess.invitations, canAdmin ? { projectId } : "skip");
+  const requestInvitation = useMutation(api.projectAccess.requestInvitation);
+  const resendInvitation = useMutation(api.projectAccess.resendInvitation);
+  const revokeInvitation = useMutation(api.projectAccess.revokeInvitation);
   const remove = useMutation(api.projectAccess.remove);
   const setRole = useMutation(api.projectAccess.setRole);
   const origins = useQuery(api.projectAccess.origins, { projectId });
   const addOrigin = useMutation(api.projectAccess.addOrigin);
   const removeOrigin = useMutation(api.projectAccess.removeOrigin);
-  const [issued, setIssued] = useState("");
+  const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   return (
     <section className="team-section">
@@ -854,15 +862,13 @@ function ProjectTeam({
             const data = new FormData(form);
             const rawToken = randomKey("mmv");
             try {
-              await invite({
+              await requestInvitation({
                 projectId,
                 email: String(data.get("email")),
                 role: String(data.get("role")) as "admin" | "commenter" | "viewer",
-                tokenHash: await sha256(rawToken),
+                rawToken,
               });
-              setIssued(
-                `${location.origin}/?project_invite=${encodeURIComponent(rawToken)}`,
-              );
+              setNotice("Project invitation email queued.");
               form.reset();
             } catch (reason) {
               setError(errorMessage(reason));
@@ -878,10 +884,24 @@ function ProjectTeam({
               <option value="viewer">Viewer</option>
             </select>
           </label>
-          <button className="primary" type="submit">Create project invite</button>
-          {issued ? <Notice tone="success"><code>{issued}</code></Notice> : null}
+          <button className="primary" type="submit">Send project invitation</button>
+          {notice ? <Notice tone="success">{notice}</Notice> : null}
           {error ? <Notice tone="error">{error}</Notice> : null}
         </form>
+      ) : null}
+      {canAdmin && invitations?.length ? (
+        <div className="card invitation-list">
+          <h3>Project invitations</h3>
+          {invitations.map((invitation) => (
+            <div key={invitation._id}>
+              <span><b>{invitation.email}</b><small>{invitation.role} · {invitation.status} · {invitation.deliveryAttemptCount} attempt{invitation.deliveryAttemptCount === 1 ? "" : "s"}</small>{invitation.lastDeliveryError ? <small className="invitation-error">{invitation.lastDeliveryError}</small> : null}</span>
+              {!invitation.acceptedAt && !invitation.revokedAt ? <span className="member-actions">
+                <button onClick={() => void resendInvitation({ invitationId: invitation._id, rawToken: randomKey("mmv") }).catch((reason) => setError(errorMessage(reason)))}>Resend</button>
+                <button onClick={() => { if (confirm(`Revoke invitation for ${invitation.email}?`)) void revokeInvitation({ invitationId: invitation._id }).catch((reason) => setError(errorMessage(reason))); }}>Revoke</button>
+              </span> : null}
+            </div>
+          ))}
+        </div>
       ) : null}
       <div>
         <p className="eyebrow">Deployed mocks</p>

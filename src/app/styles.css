@@ -377,11 +377,13 @@ button:hover {
   grid-column: 1 / -1;
 }
 .member-list,
+.invitation-list,
 .invite-form,
 .token-list {
   padding: 24px;
 }
 .member-list > div,
+.invitation-list > div,
 .token-list > div {
   display: flex;
   align-items: center;
@@ -391,13 +393,22 @@ button:hover {
   border-top: 1px solid #eee9df;
 }
 .member-list span:first-child,
+.invitation-list span:first-child,
 .token-list span:first-child {
   display: grid;
   gap: 3px;
 }
 .member-list small,
+.invitation-list small,
 .token-list small {
   color: #756e63;
+}
+.invitation-list h3 {
+  margin-top: 0;
+}
+.invitation-list .invitation-error {
+  color: #9d2f1c;
+  max-width: 440px;
 }
 .role {
   text-transform: capitalize;

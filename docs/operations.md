@@ -4,6 +4,8 @@
 
 - Personal Convex access to the intended team/project and production deployment.
 - Convex Auth `JWT_PRIVATE_KEY` and `JWKS` environment variables.
+- Resend `RESEND_API_KEY`, verified `RESEND_FROM`, public `MOCKMARK_APP_URL`, and webhook `RESEND_WEBHOOK_SECRET` environment variables.
+- Optional `RESEND_REPLY_TO` environment variable when replies should go somewhere other than the sender identity.
 - Static hosting project for `dist-web`, connected only to a personal account.
 - `VITE_CONVEX_URL` set to the production Convex client URL during build.
 - Custom domain and HTTPS before client onboarding.
@@ -19,6 +21,24 @@ npx convex deploy --cmd 'npm run build'
 Confirm target team/project before either command. Do not deploy when CLI identity only exposes a work-owned profile.
 
 Run `npm run auth:configure` once per selected deployment to generate Convex Auth signing keys. It writes keys directly through the Convex CLI and never prints them.
+
+## Configure invitation email
+
+Set these through Convex environment configuration, never repository files:
+
+```bash
+npx convex env set RESEND_API_KEY
+npx convex env set RESEND_FROM
+npx convex env set RESEND_REPLY_TO
+npx convex env set MOCKMARK_APP_URL
+npx convex env set RESEND_WEBHOOK_SECRET
+```
+
+`RESEND_FROM` must use a sender domain verified in Resend. `MOCKMARK_APP_URL` is the public dashboard origin used in single-use acceptance links.
+
+Register `https://<deployment>.convex.site/webhooks/resend` in Resend for `email.sent`, `email.delivered`, `email.bounced`, `email.failed`, and `email.suppressed`. Copy its signing secret into `RESEND_WEBHOOK_SECRET`. Mockmark verifies the raw signed payload, rejects timestamps older than five minutes, and deduplicates webhook event IDs.
+
+Invitation sends use one Resend idempotency key per delivery attempt. Transient `429` and `5xx` responses retry with the same key, preventing duplicate mail. Admins must explicitly resend failed, bounced, or expired invitations; resend rotates the single-use token and extends expiry by seven days.
 
 ## Deploy web
 
@@ -47,6 +67,7 @@ Set SPA fallback to `/index.html`, but exclude `/embed.js` from fallback. Verify
 - Remove member access at organization membership layer.
 - Archive project to reject all token access.
 - Inspect `auditEvents` for token, thread, member, and project actions.
+- Inspect invitation status and `auditEvents` for creation, send, delivery, bounce/failure, resend, acceptance, expiry, and revocation.
 - Installation tokens are private, project-scoped, and read-only. Browser review requires a signed-in project member.
 - Public reads and writes are transactionally rate-limited per token.
 - Convex backups and retention policy must be configured before production clients.

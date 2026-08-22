@@ -1,6 +1,8 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { audit, requireProject, requireUser } from "./lib/authz";
+import { hashToken } from "./lib/tokens";
 import { cleanEmail } from "./lib/validation";
 
 const projectRole = v.union(
@@ -39,25 +41,61 @@ export const members = query({
   },
 });
 
-export const invite = mutation({
+export const invitations = query({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, args) => {
+    const { project } = await requireProject(ctx, args.projectId, "admin");
+    const items = await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .order("desc")
+      .collect();
+    return items.map((invitation) => ({
+      ...invitation,
+      projectName: project.name,
+      status: invitationStatus(invitation),
+      deliveryAttemptCount: invitation.deliveryAttemptCount ?? 0,
+    }));
+  },
+});
+
+export const requestInvitation = mutation({
   args: {
     projectId: v.id("projects"),
     email: v.string(),
     role: projectRole,
-    tokenHash: v.string(),
+    rawToken: v.string(),
   },
   handler: async (ctx, args) => {
     const { project, userId } = await requireProject(ctx, args.projectId, "admin");
     const email = cleanEmail(args.email)!;
+    assertInviteToken(args.rawToken);
+    const existing = (await ctx.db
+      .query("projectInvitations")
+      .withIndex("by_project_email", (q) =>
+        q.eq("projectId", project._id).eq("email", email),
+      )
+      .collect()).find(isActiveInvitation);
+    if (existing)
+      throw new ConvexError("An active invitation already exists. Resend or revoke it instead.");
     const invitationId = await ctx.db.insert("projectInvitations", {
       projectId: project._id,
       organizationId: project.organizationId,
       email,
       role: args.role,
-      tokenHash: args.tokenHash,
+      tokenHash: await hashToken(args.rawToken),
       invitedBy: userId,
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      deliveryStatus: "pending",
+      deliveryAttemptCount: 1,
       createdAt: Date.now(),
+    });
+    const attemptId = await createDeliveryAttempt(ctx, invitationId, 1);
+    await ctx.scheduler.runAfter(0, internal.invitationEmails.deliver, {
+      attemptId,
+      scope: "project",
+      invitationId,
+      rawToken: args.rawToken,
     });
     await audit(ctx, {
       organizationId: project.organizationId,
@@ -72,6 +110,63 @@ export const invite = mutation({
   },
 });
 
+export const resendInvitation = mutation({
+  args: { invitationId: v.id("projectInvitations"), rawToken: v.string() },
+  handler: async (ctx, args) => {
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation) throw new ConvexError("Invitation not found.");
+    const { project, userId } = await requireProject(ctx, invitation.projectId, "admin");
+    if (invitation.acceptedAt || invitation.revokedAt)
+      throw new ConvexError("Only pending invitations can be resent.");
+    assertInviteToken(args.rawToken);
+    const deliveryAttemptCount = (invitation.deliveryAttemptCount ?? 0) + 1;
+    await ctx.db.patch(invitation._id, {
+      tokenHash: await hashToken(args.rawToken),
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      expiredAt: undefined,
+      deliveryStatus: "pending",
+      deliveryAttemptCount,
+      lastDeliveryError: undefined,
+    });
+    const attemptId = await createDeliveryAttempt(ctx, invitation._id, deliveryAttemptCount);
+    await ctx.scheduler.runAfter(0, internal.invitationEmails.deliver, {
+      attemptId,
+      scope: "project",
+      invitationId: invitation._id,
+      rawToken: args.rawToken,
+    });
+    await audit(ctx, {
+      organizationId: project.organizationId,
+      projectId: project._id,
+      actorUserId: userId,
+      action: "project_invitation.resent",
+      targetType: "projectInvitation",
+      targetId: invitation._id,
+      metadata: { email: invitation.email, attempt: deliveryAttemptCount },
+    });
+  },
+});
+
+export const revokeInvitation = mutation({
+  args: { invitationId: v.id("projectInvitations") },
+  handler: async (ctx, args) => {
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation) throw new ConvexError("Invitation not found.");
+    const { project, userId } = await requireProject(ctx, invitation.projectId, "admin");
+    if (invitation.acceptedAt) throw new ConvexError("Accepted invitations cannot be revoked.");
+    if (!invitation.revokedAt) await ctx.db.patch(invitation._id, { revokedAt: Date.now() });
+    await audit(ctx, {
+      organizationId: project.organizationId,
+      projectId: project._id,
+      actorUserId: userId,
+      action: "project_invitation.revoked",
+      targetType: "projectInvitation",
+      targetId: invitation._id,
+      metadata: { email: invitation.email },
+    });
+  },
+});
+
 export const acceptInvitation = mutation({
   args: { tokenHash: v.string() },
   handler: async (ctx, args) => {
@@ -80,7 +175,7 @@ export const acceptInvitation = mutation({
       .query("projectInvitations")
       .withIndex("by_token_hash", (q) => q.eq("tokenHash", args.tokenHash))
       .unique();
-    if (!invitation || invitation.acceptedAt || invitation.expiresAt < Date.now())
+    if (!invitation || invitation.acceptedAt || invitation.revokedAt || invitation.expiresAt < Date.now())
       throw new ConvexError("Invitation is invalid or expired.");
     if (user.email?.toLowerCase() !== invitation.email)
       throw new ConvexError("Sign in with the invited email address.");
@@ -121,6 +216,15 @@ export const acceptInvitation = mutation({
       organizationId: invitation.organizationId,
       projectId: invitation.projectId,
       actorUserId: userId,
+      action: "project_invitation.accepted",
+      targetType: "projectInvitation",
+      targetId: invitation._id,
+      metadata: { email: invitation.email, role: invitation.role },
+    });
+    await audit(ctx, {
+      organizationId: invitation.organizationId,
+      projectId: invitation.projectId,
+      actorUserId: userId,
       action: "project_member.joined",
       targetType: "projectMembership",
       targetId: userId,
@@ -129,6 +233,40 @@ export const acceptInvitation = mutation({
     return invitation.projectId;
   },
 });
+
+function invitationStatus(invitation: {
+  acceptedAt?: number;
+  revokedAt?: number;
+  expiredAt?: number;
+  expiresAt: number;
+  deliveryStatus?: "pending" | "sent" | "delivered" | "bounced" | "failed";
+}) {
+  if (invitation.acceptedAt) return "accepted" as const;
+  if (invitation.revokedAt) return "revoked" as const;
+  if (invitation.expiredAt || invitation.expiresAt < Date.now()) return "expired" as const;
+  return invitation.deliveryStatus === "sent" ? "pending" as const : invitation.deliveryStatus ?? "pending";
+}
+
+function isActiveInvitation(invitation: { acceptedAt?: number; revokedAt?: number; expiresAt: number }) {
+  return !invitation.acceptedAt && !invitation.revokedAt && invitation.expiresAt >= Date.now();
+}
+
+function assertInviteToken(token: string) {
+  if (!/^mmv_[A-Za-z0-9_-]{8,128}$/.test(token))
+    throw new ConvexError("Invitation token is invalid.");
+}
+
+async function createDeliveryAttempt(ctx: any, invitationId: string, attempt: number) {
+  return ctx.db.insert("invitationDeliveryAttempts", {
+    scope: "project",
+    invitationId,
+    attempt,
+    idempotencyKey: `project-invitation/${invitationId}/${attempt}`,
+    status: "pending",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+}
 
 export const origins = query({
   args: { projectId: v.id("projects") },

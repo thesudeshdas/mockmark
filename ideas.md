@@ -2,7 +2,7 @@
 
 ## Send invitations by email with Resend
 
-**Status:** Idea
+**Status:** Implemented
 
 Integrate Resend so workspace and project invitations are delivered by email instead of relying on manually shared invite links.
 

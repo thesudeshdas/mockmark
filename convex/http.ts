@@ -4,6 +4,7 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { hashToken } from "./lib/tokens";
 import { hostedBootstrap, hostedSecurityHeaders } from "./lib/hostedRuntime";
+import { verifyResendWebhook } from "./invitationEmails";
 
 const http = httpRouter();
 auth.addHttpRoutes(http);
@@ -20,6 +21,37 @@ http.route({
         },
       }),
   ),
+});
+
+http.route({
+  path: "/webhooks/resend",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const secret = process.env.RESEND_WEBHOOK_SECRET;
+    const id = request.headers.get("svix-id") ?? "";
+    const timestamp = request.headers.get("svix-timestamp") ?? "";
+    const signature = request.headers.get("svix-signature") ?? "";
+    const payload = await request.text();
+    if (!secret || !id || !timestamp || !signature || !await verifyResendWebhook({ payload, id, timestamp, signature, secret }))
+      return new Response("Invalid webhook.", { status: 400 });
+    let event: {
+      type?: string;
+      created_at?: string;
+      data?: { email_id?: string; bounce?: { message?: string }; reason?: string };
+    };
+    try { event = JSON.parse(payload); }
+    catch { return new Response("Invalid payload.", { status: 400 }); }
+    if (!event.type || !event.data?.email_id)
+      return new Response("Ignored.", { status: 200 });
+    await ctx.runMutation(internal.invitationEmails.recordWebhookEvent, {
+      eventId: id,
+      eventType: event.type,
+      providerEmailId: event.data.email_id,
+      occurredAt: event.created_at ? Date.parse(event.created_at) || Date.now() : Date.now(),
+      details: event.data.bounce?.message ?? event.data.reason,
+    });
+    return new Response("OK", { status: 200 });
+  }),
 });
 
 http.route({

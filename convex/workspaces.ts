@@ -1,7 +1,9 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
+import { internal } from "./_generated/api";
 import { mutation, query } from "./_generated/server";
 import { audit, requireMembership, requireUser } from "./lib/authz";
+import { hashToken } from "./lib/tokens";
 import { cleanEmail, cleanText, slugify } from "./lib/validation";
 
 const role = v.union(
@@ -140,12 +142,29 @@ export const members = query({
   },
 });
 
-export const invite = mutation({
+export const invitations = query({
+  args: { organizationId: v.id("organizations") },
+  handler: async (ctx, args) => {
+    await requireMembership(ctx, args.organizationId, "admin");
+    const items = await ctx.db
+      .query("invitations")
+      .withIndex("by_org", (q) => q.eq("organizationId", args.organizationId))
+      .order("desc")
+      .collect();
+    return items.map((invitation) => ({
+      ...invitation,
+      status: invitationStatus(invitation),
+      deliveryAttemptCount: invitation.deliveryAttemptCount ?? 0,
+    }));
+  },
+});
+
+export const requestInvitation = mutation({
   args: {
     organizationId: v.id("organizations"),
     email: v.string(),
     role,
-    tokenHash: v.string(),
+    rawToken: v.string(),
   },
   handler: async (ctx, args) => {
     const { userId } = await requireMembership(
@@ -156,14 +175,32 @@ export const invite = mutation({
     if (args.role === "owner")
       throw new ConvexError("Owner role cannot be invited.");
     const email = cleanEmail(args.email)!;
+    assertInviteToken(args.rawToken);
+    const existing = (await ctx.db
+      .query("invitations")
+      .withIndex("by_org_email", (q) =>
+        q.eq("organizationId", args.organizationId).eq("email", email),
+      )
+      .collect()).find(isActiveInvitation);
+    if (existing)
+      throw new ConvexError("An active invitation already exists. Resend or revoke it instead.");
     const invitationId = await ctx.db.insert("invitations", {
       organizationId: args.organizationId,
       email,
       role: args.role,
-      tokenHash: args.tokenHash,
+      tokenHash: await hashToken(args.rawToken),
       invitedBy: userId,
       expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      deliveryStatus: "pending",
+      deliveryAttemptCount: 1,
       createdAt: Date.now(),
+    });
+    const attemptId = await createDeliveryAttempt(ctx, "workspace", invitationId, 1);
+    await ctx.scheduler.runAfter(0, internal.invitationEmails.deliver, {
+      attemptId,
+      scope: "workspace",
+      invitationId,
+      rawToken: args.rawToken,
     });
     await audit(ctx, {
       organizationId: args.organizationId,
@@ -174,6 +211,61 @@ export const invite = mutation({
       metadata: { email, role: args.role },
     });
     return invitationId;
+  },
+});
+
+export const resendInvitation = mutation({
+  args: { invitationId: v.id("invitations"), rawToken: v.string() },
+  handler: async (ctx, args) => {
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation) throw new ConvexError("Invitation not found.");
+    const { userId } = await requireMembership(ctx, invitation.organizationId, "admin");
+    if (invitation.acceptedAt || invitation.revokedAt)
+      throw new ConvexError("Only pending invitations can be resent.");
+    assertInviteToken(args.rawToken);
+    const deliveryAttemptCount = (invitation.deliveryAttemptCount ?? 0) + 1;
+    await ctx.db.patch(invitation._id, {
+      tokenHash: await hashToken(args.rawToken),
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      expiredAt: undefined,
+      deliveryStatus: "pending",
+      deliveryAttemptCount,
+      lastDeliveryError: undefined,
+    });
+    const attemptId = await createDeliveryAttempt(ctx, "workspace", invitation._id, deliveryAttemptCount);
+    await ctx.scheduler.runAfter(0, internal.invitationEmails.deliver, {
+      attemptId,
+      scope: "workspace",
+      invitationId: invitation._id,
+      rawToken: args.rawToken,
+    });
+    await audit(ctx, {
+      organizationId: invitation.organizationId,
+      actorUserId: userId,
+      action: "invitation.resent",
+      targetType: "invitation",
+      targetId: invitation._id,
+      metadata: { email: invitation.email, attempt: deliveryAttemptCount },
+    });
+  },
+});
+
+export const revokeInvitation = mutation({
+  args: { invitationId: v.id("invitations") },
+  handler: async (ctx, args) => {
+    const invitation = await ctx.db.get(args.invitationId);
+    if (!invitation) throw new ConvexError("Invitation not found.");
+    const { userId } = await requireMembership(ctx, invitation.organizationId, "admin");
+    if (invitation.acceptedAt) throw new ConvexError("Accepted invitations cannot be revoked.");
+    if (!invitation.revokedAt) await ctx.db.patch(invitation._id, { revokedAt: Date.now() });
+    await audit(ctx, {
+      organizationId: invitation.organizationId,
+      actorUserId: userId,
+      action: "invitation.revoked",
+      targetType: "invitation",
+      targetId: invitation._id,
+      metadata: { email: invitation.email },
+    });
   },
 });
 
@@ -188,6 +280,7 @@ export const acceptInvitation = mutation({
     if (
       !invitation ||
       invitation.acceptedAt ||
+      invitation.revokedAt ||
       invitation.expiresAt < Date.now()
     )
       throw new ConvexError("Invitation is invalid or expired.");
@@ -210,6 +303,14 @@ export const acceptInvitation = mutation({
     await audit(ctx, {
       organizationId: invitation.organizationId,
       actorUserId: userId,
+      action: "invitation.accepted",
+      targetType: "invitation",
+      targetId: invitation._id,
+      metadata: { email: invitation.email, role: invitation.role },
+    });
+    await audit(ctx, {
+      organizationId: invitation.organizationId,
+      actorUserId: userId,
       action: "member.joined",
       targetType: "membership",
       targetId: userId,
@@ -217,6 +318,45 @@ export const acceptInvitation = mutation({
     return invitation.organizationId;
   },
 });
+
+function invitationStatus(invitation: {
+  acceptedAt?: number;
+  revokedAt?: number;
+  expiredAt?: number;
+  expiresAt: number;
+  deliveryStatus?: "pending" | "sent" | "delivered" | "bounced" | "failed";
+}) {
+  if (invitation.acceptedAt) return "accepted" as const;
+  if (invitation.revokedAt) return "revoked" as const;
+  if (invitation.expiredAt || invitation.expiresAt < Date.now()) return "expired" as const;
+  return invitation.deliveryStatus === "sent" ? "pending" as const : invitation.deliveryStatus ?? "pending";
+}
+
+function isActiveInvitation(invitation: { acceptedAt?: number; revokedAt?: number; expiresAt: number }) {
+  return !invitation.acceptedAt && !invitation.revokedAt && invitation.expiresAt >= Date.now();
+}
+
+function assertInviteToken(token: string) {
+  if (!/^mmv_[A-Za-z0-9_-]{8,128}$/.test(token))
+    throw new ConvexError("Invitation token is invalid.");
+}
+
+async function createDeliveryAttempt(
+  ctx: any,
+  scope: "workspace" | "project",
+  invitationId: string,
+  attempt: number,
+) {
+  return ctx.db.insert("invitationDeliveryAttempts", {
+    scope,
+    invitationId,
+    attempt,
+    idempotencyKey: `${scope}-invitation/${invitationId}/${attempt}`,
+    status: "pending",
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+}
 
 export const removeMember = mutation({
   args: { membershipId: v.id("memberships") },

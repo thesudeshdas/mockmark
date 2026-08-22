@@ -9,6 +9,14 @@ const role = v.union(
   v.literal("viewer"),
 );
 
+const invitationDeliveryStatus = v.union(
+  v.literal("pending"),
+  v.literal("sent"),
+  v.literal("delivered"),
+  v.literal("bounced"),
+  v.literal("failed"),
+);
+
 export default defineSchema({
   ...authTables,
   organizations: defineTable({
@@ -35,10 +43,17 @@ export default defineSchema({
     invitedBy: v.id("users"),
     expiresAt: v.number(),
     acceptedAt: v.optional(v.number()),
+    expiredAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    deliveryStatus: v.optional(invitationDeliveryStatus),
+    deliveryAttemptCount: v.optional(v.number()),
+    lastDeliveryError: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_token_hash", ["tokenHash"])
-    .index("by_org", ["organizationId"]),
+    .index("by_org", ["organizationId"])
+    .index("by_org_email", ["organizationId", "email"])
+    .index("by_expires_at", ["expiresAt"]),
   projects: defineTable({
     organizationId: v.id("organizations"),
     name: v.string(),
@@ -78,10 +93,38 @@ export default defineSchema({
     invitedBy: v.id("users"),
     expiresAt: v.number(),
     acceptedAt: v.optional(v.number()),
+    expiredAt: v.optional(v.number()),
+    revokedAt: v.optional(v.number()),
+    deliveryStatus: v.optional(invitationDeliveryStatus),
+    deliveryAttemptCount: v.optional(v.number()),
+    lastDeliveryError: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_token_hash", ["tokenHash"])
-    .index("by_project", ["projectId"]),
+    .index("by_project", ["projectId"])
+    .index("by_project_email", ["projectId", "email"])
+    .index("by_expires_at", ["expiresAt"]),
+  invitationDeliveryAttempts: defineTable({
+    scope: v.union(v.literal("workspace"), v.literal("project")),
+    invitationId: v.string(),
+    attempt: v.number(),
+    idempotencyKey: v.string(),
+    providerEmailId: v.optional(v.string()),
+    status: invitationDeliveryStatus,
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_invitation", ["scope", "invitationId"])
+    .index("by_idempotency_key", ["idempotencyKey"])
+    .index("by_provider_email", ["providerEmailId"]),
+  resendWebhookEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    providerEmailId: v.string(),
+    occurredAt: v.number(),
+    receivedAt: v.number(),
+  }).index("by_event_id", ["eventId"]),
   projectOrigins: defineTable({
     projectId: v.id("projects"),
     origin: v.string(),
