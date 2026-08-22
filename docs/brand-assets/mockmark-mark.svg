@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Mockmark proof mark</title>
+  <desc id="desc">An M held between two annotation corner marks.</desc>
+  <path d="M5 20V5h15" fill="none" stroke="#FFD84D" stroke-width="5" stroke-linecap="square"/>
+  <path d="M44 59h15V44" fill="none" stroke="#FFD84D" stroke-width="5" stroke-linecap="square"/>
+  <path d="M13 46V19l19 20 19-20v27" fill="none" stroke="#15181D" stroke-width="6" stroke-linejoin="miter"/>
+  <circle cx="32" cy="39" r="4.5" fill="#FFD84D"/>
+</svg>

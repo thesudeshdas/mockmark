@@ -1,0 +1,172 @@
+/* Mockmark "Review Signal" brand tokens — canonical CSS source, 2026-08-22. */
+@font-face {
+  font-family: "Recursive Mockmark";
+  src: url("./fonts/Recursive-VF-LatinBasic.woff2") format("woff2-variations");
+  font-style: oblique 0deg 15deg;
+  font-weight: 300 1000;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+
+  /* Primitive color tokens: keep HEX fallback before OKLCH. */
+  --mm-white: #ffffff;
+  --mm-white: oklch(1 0 0);
+  --mm-canvas: #f2f4f6;
+  --mm-canvas: oklch(0.9662 0.0034 247.86);
+  --mm-neutral-subtle: #e6e9ed;
+  --mm-neutral-subtle: oklch(0.9329 0.0063 255.48);
+  --mm-ink: #15181d;
+  --mm-ink: oklch(0.2081 0.0110 260.67);
+  --mm-ink-muted: #5d6672;
+  --mm-ink-muted: oklch(0.5068 0.0221 255.62);
+  --mm-rule: #c7cdd4;
+  --mm-rule: oklch(0.8457 0.0118 252.10);
+  --mm-mark: #ffd84d;
+  --mm-mark: oklch(0.8916 0.1569 92.99);
+  --mm-mark-strong: #6b5200;
+  --mm-mark-strong: oklch(0.4520 0.0924 88.21);
+  --mm-mark-soft: #fff6cc;
+  --mm-mark-soft: oklch(0.9697 0.0551 97.26);
+  --mm-blue: #0a65ff;
+  --mm-blue: oklch(0.5624 0.2412 261.37);
+  --mm-blue-soft: #dce9ff;
+  --mm-blue-soft: oklch(0.9310 0.0330 261.03);
+  --mm-green: #176b4a;
+  --mm-green: oklch(0.4705 0.0946 161.75);
+  --mm-green-soft: #e0f3e9;
+  --mm-amber: #8b5a00;
+  --mm-amber: oklch(0.5091 0.1086 72.67);
+  --mm-amber-soft: #fff0c2;
+  --mm-red: #b42318;
+  --mm-red: oklch(0.5003 0.1821 29.51);
+  --mm-red-soft: #ffe2de;
+
+  /* Semantic light-theme aliases. */
+  --mm-color-canvas: var(--mm-canvas);
+  --mm-color-surface: var(--mm-white);
+  --mm-color-surface-subtle: var(--mm-neutral-subtle);
+  --mm-color-text: var(--mm-ink);
+  --mm-color-text-muted: var(--mm-ink-muted);
+  --mm-color-border: var(--mm-rule);
+  --mm-color-action: var(--mm-ink);
+  --mm-color-action-text: var(--mm-white);
+  --mm-color-accent: var(--mm-mark);
+  --mm-color-accent-text: var(--mm-ink);
+  --mm-color-accent-strong: var(--mm-mark-strong);
+  --mm-color-focus: var(--mm-blue);
+  --mm-color-success: var(--mm-green);
+  --mm-color-warning: var(--mm-amber);
+  --mm-color-danger: var(--mm-red);
+  --mm-color-info: var(--mm-blue);
+
+  /* Data series. Never encode meaning by color alone. */
+  --mm-data-1: var(--mm-mark);
+  --mm-data-2: var(--mm-blue);
+  --mm-data-3: #16877b;
+  --mm-data-3: oklch(0.5624 0.0950 183.64);
+  --mm-data-4: #b77900;
+  --mm-data-4: oklch(0.6253 0.1329 73.45);
+  --mm-data-5: #8246af;
+  --mm-data-5: oklch(0.5155 0.1653 307.99);
+  --mm-data-6: #217a4b;
+  --mm-data-6: oklch(0.5155 0.1114 155.52);
+  --mm-data-7: #c13f35;
+  --mm-data-7: oklch(0.5528 0.1679 28.20);
+  --mm-data-8: #77746d;
+  --mm-data-8: oklch(0.5595 0.0112 87.51);
+
+  /* Type: one family moves from proportional human text to mono code. */
+  --mm-font-sans: "Recursive Mockmark", "Arial", sans-serif;
+  --mm-font-mono: "Recursive Mockmark", "SFMono-Regular", Consolas, monospace;
+  --mm-weight-regular: 450;
+  --mm-weight-medium: 550;
+  --mm-weight-semibold: 650;
+  --mm-weight-bold: 800;
+  --mm-text-xs: 0.75rem;
+  --mm-text-sm: 0.875rem;
+  --mm-text-md: 1rem;
+  --mm-text-lg: 1.25rem;
+  --mm-text-xl: clamp(1.75rem, 2.4vw, 2.5rem);
+  --mm-text-display: clamp(3rem, 8vw, 7.5rem);
+  --mm-leading-tight: 0.94;
+  --mm-leading-heading: 1.08;
+  --mm-leading-body: 1.55;
+  --mm-tracking-display: -0.045em;
+  --mm-tracking-label: 0.08em;
+
+  /* 4px base, 8px default rhythm. */
+  --mm-space-1: 0.25rem;
+  --mm-space-2: 0.5rem;
+  --mm-space-3: 0.75rem;
+  --mm-space-4: 1rem;
+  --mm-space-6: 1.5rem;
+  --mm-space-8: 2rem;
+  --mm-space-12: 3rem;
+  --mm-space-16: 4rem;
+  --mm-space-24: 6rem;
+  --mm-space-32: 8rem;
+  --mm-container-text: 42rem;
+  --mm-container-page: 76rem;
+  --mm-container-wide: 90rem;
+  --mm-grid-columns: 12;
+  --mm-grid-gutter: clamp(1rem, 2vw, 2rem);
+
+  --mm-radius-control: 0.25rem;
+  --mm-radius-surface: 0.5rem;
+  --mm-radius-dialog: 0.75rem;
+  --mm-radius-round: 999px;
+  --mm-border-hairline: 1px;
+  --mm-border-emphasis: 2px;
+  --mm-shadow-raised: 0 1px 0 rgb(21 24 29 / 8%), 0 8px 20px rgb(21 24 29 / 8%);
+  --mm-shadow-overlay: 0 16px 40px rgb(21 24 29 / 18%);
+  --mm-focus-ring: 0 0 0 2px var(--mm-color-surface), 0 0 0 5px var(--mm-color-focus);
+
+  --mm-duration-instant: 80ms;
+  --mm-duration-fast: 140ms;
+  --mm-duration-standard: 220ms;
+  --mm-duration-emphasis: 360ms;
+  --mm-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --mm-ease-enter: cubic-bezier(0, 0, 0, 1);
+  --mm-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+}
+
+[data-mm-theme="dark"] {
+  --mm-color-canvas: #101318;
+  --mm-color-canvas: oklch(0.1858 0.0113 260.65);
+  --mm-color-surface: #191d23;
+  --mm-color-surface: oklch(0.2293 0.0131 258.37);
+  --mm-color-surface-subtle: #222831;
+  --mm-color-surface-subtle: oklch(0.2749 0.0188 258.37);
+  --mm-color-text: #f5f7fa;
+  --mm-color-text: oklch(0.9755 0.0045 258.32);
+  --mm-color-text-muted: #aab2be;
+  --mm-color-text-muted: oklch(0.7610 0.0194 258.36);
+  --mm-color-border: #39414c;
+  --mm-color-border: oklch(0.3724 0.0217 256.38);
+  --mm-color-action: #f5f7fa;
+  --mm-color-action-text: #101318;
+  --mm-color-accent: #ffe05c;
+  --mm-color-accent: oklch(0.9087 0.1518 95.97);
+  --mm-color-accent-text: #101318;
+  --mm-color-focus: #7cb0ff;
+  --mm-color-focus: oklch(0.7532 0.1273 258.52);
+  --mm-color-success: #5bd39b;
+  --mm-color-success: oklch(0.7835 0.1359 160.49);
+  --mm-color-warning: #f1b84b;
+  --mm-color-warning: oklch(0.8155 0.1394 80.55);
+  --mm-color-danger: #ff8a7b;
+  --mm-color-danger: oklch(0.7584 0.1446 28.54);
+  --mm-color-info: var(--mm-color-focus);
+  --mm-shadow-raised: 0 1px 0 rgb(255 255 255 / 6%), 0 12px 34px rgb(0 0 0 / 28%);
+  --mm-shadow-overlay: 0 20px 56px rgb(0 0 0 / 44%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mm-duration-fast: 0ms;
+    --mm-duration-standard: 0ms;
+    --mm-duration-emphasis: 0ms;
+  }
+}
