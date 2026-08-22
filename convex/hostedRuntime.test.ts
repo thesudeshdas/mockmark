@@ -14,7 +14,7 @@ describe("hosted response runtime", () => {
     const csp = headers["content-security-policy"];
     expect(csp).toContain("sandbox allow-scripts");
     expect(csp).not.toContain("allow-same-origin");
-    expect(csp).toContain("frame-ancestors https://mockmark.vercel.app");
+    expect(csp).toContain("frame-ancestors https://mockmark.heywhoisdash.com https://mockmark.vercel.app");
     expect(headers).not.toHaveProperty("x-frame-options");
   });
 });
