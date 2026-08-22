@@ -10,6 +10,8 @@
 - `VITE_CONVEX_URL` set to the production Convex client URL during build.
 - Custom domain and HTTPS before client onboarding.
 
+Production dashboard origin: `https://mockmark.heywhoisdash.com`. Keep `https://mockmark.vercel.app` as a fallback alias and permitted hosted-preview frame ancestor.
+
 ## Deploy backend
 
 ```bash

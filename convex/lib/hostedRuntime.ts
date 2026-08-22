@@ -24,7 +24,7 @@ export function hostedSecurityHeaders(contentType: string) {
     "referrer-policy": "no-referrer",
     "x-content-type-options": "nosniff",
     "access-control-allow-origin": "*",
-    "content-security-policy": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads allow-top-navigation-by-user-activation; frame-ancestors https://mockmark.vercel.app",
+    "content-security-policy": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads allow-top-navigation-by-user-activation; frame-ancestors https://mockmark.heywhoisdash.com https://mockmark.vercel.app",
   };
 }
 
