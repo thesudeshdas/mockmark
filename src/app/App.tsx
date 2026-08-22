@@ -967,8 +967,12 @@ function Field(
 function Logo() {
   return (
     <div className="logo">
-      <span>M</span>
-      <b>Mockmark</b>
+      <svg viewBox="0 0 64 64" aria-hidden="true">
+        <path className="logo-corners" d="M5 20V5h15M44 59h15V44" />
+        <path className="logo-path" d="M13 46V19l19 20 19-20v27" />
+        <circle className="logo-anchor" cx="32" cy="39" r="4.5" />
+      </svg>
+      <b>mockmark</b>
     </div>
   );
 }

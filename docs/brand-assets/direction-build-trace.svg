@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="a b">
+  <title id="a">Direction B: Build Trace</title><desc id="b">Dark technical interface with cyan paths, lime status, and terminal geometry.</desc>
+  <rect width="960" height="540" fill="#10151B"/>
+  <g stroke="#21303D" opacity=".8"><path d="M0 40H960M0 80H960M0 120H960M0 160H960M0 200H960M0 240H960M0 280H960M0 320H960M0 360H960M0 400H960M0 440H960M0 480H960M40 0V540M80 0V540M120 0V540M160 0V540M200 0V540M240 0V540M280 0V540M320 0V540M360 0V540M400 0V540M440 0V540M480 0V540M520 0V540M560 0V540M600 0V540M640 0V540M680 0V540M720 0V540M760 0V540M800 0V540M840 0V540M880 0V540M920 0V540"/></g>
+  <text x="48" y="84" font-family="monospace" font-size="15" font-weight="700" letter-spacing="2" fill="#9DFF5B">DIRECTION B</text>
+  <text x="48" y="138" font-family="Arial,sans-serif" font-size="52" font-weight="800" letter-spacing="-2" fill="#F2F8FC">Build Trace</text>
+  <text x="48" y="174" font-family="monospace" font-size="16" fill="#8EA5B5">Feedback as an observable repository event.</text>
+  <g transform="translate(48 218)">
+    <rect width="864" height="250" fill="#121C24" stroke="#46D9FF" stroke-width="2"/>
+    <path d="M0 44H864M246 44V250M630 44V250" stroke="#324653"/>
+    <text x="16" y="28" font-family="monospace" font-size="12" fill="#46D9FF">mmp://checkout.html@9fcd394</text><circle cx="834" cy="22" r="5" fill="#9DFF5B"/>
+    <text x="16" y="75" font-family="monospace" font-size="11" fill="#8EA5B5">TREE</text><text x="16" y="105" font-family="monospace" font-size="12" fill="#F2F8FC">└─ checkout.html</text><text x="16" y="132" font-family="monospace" font-size="12" fill="#8EA5B5">   ├─ thread:01</text><text x="16" y="159" font-family="monospace" font-size="12" fill="#8EA5B5">   └─ thread:02</text>
+    <rect x="274" y="73" width="328" height="146" fill="#F2F8FC"/>
+    <path d="M420 91H574V167H420Z" fill="none" stroke="#46D9FF" stroke-width="3" stroke-dasharray="7 5"/><circle cx="567" cy="96" r="12" fill="#9DFF5B"/><text x="563" y="100" font-family="monospace" font-size="11" font-weight="700" fill="#10151B">1</text>
+    <text x="648" y="75" font-family="monospace" font-size="11" fill="#8EA5B5">EVENT STREAM</text><text x="648" y="105" font-family="monospace" font-size="11" fill="#46D9FF">17:20:01 comment</text><text x="648" y="129" font-family="monospace" font-size="11" fill="#F2F8FC">align total label</text><text x="648" y="166" font-family="monospace" font-size="11" fill="#9DFF5B">status: open</text>
+  </g>
+  <g transform="translate(690 92)"><rect width="48" height="8" fill="#46D9FF"/><rect x="56" width="48" height="8" fill="#9DFF5B"/><rect x="112" width="48" height="8" fill="#F2F8FC"/></g>
+</svg>

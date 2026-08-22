@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 72" role="img" aria-labelledby="title desc">
+  <title id="title">Mockmark</title>
+  <desc id="desc">Mockmark proof mark and lowercase wordmark.</desc>
+  <defs>
+    <style>
+      @font-face{font-family:RecursiveMockmark;src:url("fonts/Recursive-VF-LatinBasic.woff2") format("woff2-variations");font-weight:300 1000}
+    </style>
+  </defs>
+  <g transform="translate(4 4) scale(.94)">
+    <path d="M5 20V5h15" fill="none" stroke="#FFD84D" stroke-width="5" stroke-linecap="square"/>
+    <path d="M44 59h15V44" fill="none" stroke="#FFD84D" stroke-width="5" stroke-linecap="square"/>
+    <path d="M13 46V19l19 20 19-20v27" fill="none" stroke="#15181D" stroke-width="6" stroke-linejoin="miter"/>
+    <circle cx="32" cy="39" r="4.5" fill="#FFD84D"/>
+  </g>
+  <text x="80" y="50" fill="#15181D" font-family="RecursiveMockmark, Arial, sans-serif" font-size="46" font-weight="750" letter-spacing="-2">mockmark</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160">
+  <rect width="240" height="160" fill="#F2F4F6"/>
+  <g stroke="#C7CDD4" stroke-width="1" opacity=".7">
+    <path d="M0 40H240M0 80H240M0 120H240M40 0V160M80 0V160M120 0V160M160 0V160M200 0V160"/>
+  </g>
+  <g fill="none" stroke="#FFD84D" stroke-width="2">
+    <path d="M14 30V14h16M210 146h16v-16"/>
+  </g>
+  <g fill="#15181D" font-family="monospace" font-size="8">
+    <text x="14" y="153">mmp / review / 01</text>
+  </g>
+</svg>

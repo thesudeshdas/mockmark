@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Mockmark">
+  <rect width="32" height="32" rx="4" fill="#15181D"/>
+  <path d="M4 10V4h6M22 28h6v-6" fill="none" stroke="#FFE05C" stroke-width="2.5"/>
+  <path d="M7 24V10l9 9 9-9v14" fill="none" stroke="#F7F1E8" stroke-width="3" stroke-linejoin="miter"/>
+  <circle cx="16" cy="19" r="2.25" fill="#FFE05C"/>
+</svg>

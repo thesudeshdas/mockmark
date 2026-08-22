@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Mockmark Review Signal visual brand guidelines, version 2.0.">
+  <title>Mockmark — Review Signal brand guidelines</title>
+  <link rel="icon" href="brand-assets/favicon.svg" type="image/svg+xml">
+  <style>
+    @font-face {
+      font-family: "Recursive Mockmark";
+      src: url("brand-assets/fonts/Recursive-VF-LatinBasic.woff2") format("woff2-variations");
+      font-style: oblique 0deg 15deg;
+      font-weight: 300 1000;
+      font-display: swap;
+    }
+    :root {
+      --surface:#ffffff;--canvas:#f2f4f6;--surface-subtle:#e6e9ed;
+      --ink:#15181d;--muted:#5d6672;--rule:#c7cdd4;
+      --mark:#ffd84d;--mark-strong:#6b5200;--mark-soft:#fff6cc;
+      --blue:#0a65ff;--blue-soft:#dce9ff;--green:#176b4a;
+      --amber:#8b5a00;--red:#b42318;
+      --font:"Recursive Mockmark",Arial,sans-serif;
+      --mono:"Recursive Mockmark","SFMono-Regular",Consolas,monospace;
+      --page:1216px;--wide:1440px;--gutter:clamp(16px,2.4vw,36px);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--font);font-variation-settings:"MONO" 0,"CASL" 0,"CRSV" 0;font-weight:450;line-height:1.55}
+    img,svg{display:block;max-width:100%}
+    a{color:inherit;text-decoration-thickness:1px;text-underline-offset:3px}
+    a:focus-visible,button:focus-visible{outline:0;box-shadow:0 0 0 2px var(--surface),0 0 0 5px var(--blue)}
+    button{font:inherit}
+    .skip{position:absolute;left:12px;top:-60px;z-index:30;background:var(--ink);color:var(--surface);padding:10px 14px}
+    .skip:focus{top:12px}
+    .shell{width:min(calc(100% - 2*var(--gutter)),var(--page));margin-inline:auto}
+    .wide{width:min(calc(100% - 2*var(--gutter)),var(--wide));margin-inline:auto}
+    .mast{position:sticky;top:0;z-index:20;background:var(--canvas);border-bottom:1px solid var(--rule)}
+    .mast-inner{height:68px;display:flex;align-items:center;gap:28px}
+    .brand{display:flex;align-items:center;gap:9px;text-decoration:none;font-weight:760;letter-spacing:-.03em;white-space:nowrap}
+    .brand svg{width:30px;height:30px}
+    .mast nav{display:flex;gap:20px;overflow-x:auto;white-space:nowrap;margin-left:auto;font-size:13px;font-weight:600;scrollbar-width:none}
+    .mast nav::-webkit-scrollbar{display:none}
+    .mast nav a{text-decoration:none;padding-block:8px;border-bottom:2px solid transparent}
+    .mast nav a:hover{border-color:var(--mark)}
+    .version{font-family:var(--mono);font-variation-settings:"MONO" 1,"CASL" 0;font-size:11px;color:var(--muted);white-space:nowrap}
+    .hero{position:relative;padding:clamp(72px,11vw,150px) 0 88px;border-bottom:1px solid var(--rule);overflow:hidden}
+    .hero:before{content:"";position:absolute;inset:auto 0 0 auto;width:min(43vw,600px);height:min(31vw,410px);background:url("brand-assets/review-signal-pattern.svg") center/cover;opacity:.32;mix-blend-mode:multiply}
+    .hero-grid{position:relative;display:grid;grid-template-columns:minmax(0,7fr) minmax(280px,3fr);gap:clamp(36px,7vw,104px);align-items:end}
+    .kicker,.section-no,.label{font-family:var(--mono);font-variation-settings:"MONO" 1,"CASL" 0;font-size:11px;font-weight:650;letter-spacing:.1em;text-transform:uppercase}
+    .kicker{color:var(--mark-strong);margin:0 0 24px}
+    h1,h2,h3,h4,p{margin-top:0}
+    h1{max-width:820px;margin-bottom:30px;font-size:clamp(58px,9.1vw,124px);line-height:.9;letter-spacing:-.055em;font-weight:860;font-variation-settings:"MONO" 0,"CASL" 0,"CRSV" 0}
+    .hero-lead{max-width:650px;margin:0;font-size:clamp(19px,2vw,25px);line-height:1.45;color:var(--muted)}
+    .hero-note{position:relative;border-top:2px solid var(--ink);padding:26px 0 0 54px;min-width:0}
+    .hero-note .ordinal{position:absolute;left:0;top:24px;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--mark);border:1px solid var(--ink);font-family:var(--mono);font-variation-settings:"MONO" 1;font-weight:750}
+    .hero-note strong{display:block;margin-bottom:8px;font-size:18px}
+    .hero-note p{font-size:14px;color:var(--muted)}
+    .meta-row{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:28px;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:12px;color:var(--muted)}
+    .meta-row span:before{content:"/";margin-right:9px;color:var(--mark)}
+    section{scroll-margin-top:82px}
+    .chapter{padding:clamp(76px,10vw,132px) 0;border-bottom:1px solid var(--rule)}
+    .section-head{display:grid;grid-template-columns:140px minmax(0,1fr);gap:28px;margin-bottom:clamp(48px,7vw,88px)}
+    .section-no{color:var(--mark-strong);padding-top:10px}
+    .section-title h2{max-width:900px;margin-bottom:18px;font-size:clamp(40px,5.4vw,72px);line-height:.98;letter-spacing:-.045em;font-weight:820}
+    .section-title>p{max-width:720px;margin:0;color:var(--muted);font-size:18px}
+    .principles{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid var(--ink)}
+    .principle{min-height:240px;padding:26px 22px;border-right:1px solid var(--rule);position:relative}
+    .principle:last-child{border-right:0}
+    .principle b{display:block;font-size:18px;line-height:1.15;margin:70px 0 12px}
+    .principle p{font-size:13px;color:var(--muted);margin:0}
+    .principle .n{position:absolute;top:22px;left:22px;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:30px;color:var(--mark)}
+    .idea-banner{margin-top:28px;background:var(--ink);color:var(--surface);padding:clamp(28px,5vw,64px);display:grid;grid-template-columns:1.2fr .8fr;gap:40px;align-items:end}
+    .idea-banner h3{margin:0;font-size:clamp(34px,5vw,68px);line-height:1;letter-spacing:-.04em;font-variation-settings:"CASL" 0;font-weight:820}
+    .idea-banner p{margin:0;color:#aab2be;font-size:17px}
+    .logo-stage{display:grid;grid-template-columns:1.35fr .65fr;border:1px solid var(--ink);background:var(--surface)}
+    .logo-main{min-height:430px;display:grid;place-items:center;padding:50px;border-right:1px solid var(--rule);position:relative}
+    .logo-main img{width:min(520px,88%)}
+    .corner{position:absolute;width:38px;height:38px;border-color:var(--mark);border-style:solid}
+    .corner.tl{left:22px;top:22px;border-width:3px 0 0 3px}.corner.br{right:22px;bottom:22px;border-width:0 3px 3px 0}
+    .logo-meta{display:grid;grid-template-rows:repeat(3,1fr)}
+    .logo-meta>div{padding:26px;border-bottom:1px solid var(--rule)}
+    .logo-meta>div:last-child{border:0}
+    .logo-meta b{display:block;margin:10px 0 4px;font-size:17px}
+    .logo-meta p{margin:0;color:var(--muted);font-size:13px}
+    .logo-uses{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:16px}
+    .logo-use{min-height:210px;border:1px solid var(--rule);padding:20px;display:grid;grid-template-rows:1fr auto;background:var(--surface)}
+    .logo-use.dark{background:#101318;color:#f5f7fa}.logo-use.mark-bg{background:var(--mark)}
+    .logo-use img{width:74px;align-self:center;justify-self:center}.logo-use.dark img{filter:brightness(0) invert(1)}
+    .logo-use small{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px}
+    .dont{position:relative}.dont:after{content:"";position:absolute;left:16px;right:16px;top:50%;height:3px;background:var(--red);transform:rotate(-18deg)}
+    .palette{display:grid;grid-template-columns:repeat(6,1fr);border:1px solid var(--ink)}
+    .swatch{min-height:210px;padding:18px;display:flex;flex-direction:column;justify-content:flex-end;border-right:1px solid color-mix(in srgb,currentColor 24%,transparent)}
+    .swatch:nth-child(6n){border-right:0}.swatch b{font-size:15px}.swatch code{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;line-height:1.5}
+    .surface{background:#ffffff}.canvas{background:#f2f4f6}.surface-subtle{background:#e6e9ed}.ink{background:#15181d;color:#ffffff}.muted{background:#5d6672;color:#ffffff}.mark{background:#ffd84d}.markstrong{background:#6b5200;color:white}.marksoft{background:#fff6cc}.blue{background:#0a65ff;color:white}.green{background:#176b4a;color:white}.amber{background:#8b5a00;color:white}.red{background:#b42318;color:white}
+    .theme-grid{display:grid;grid-template-columns:1fr 1fr;margin-top:32px;border:1px solid var(--ink)}
+    .theme{padding:32px;min-height:380px}.theme.dark{background:#101318;color:#f5f7fa}
+    .theme h3{font-size:28px;margin-bottom:24px}.theme-ui{border:1px solid var(--rule);padding:20px;background:var(--surface)}
+    .dark .theme-ui{border-color:#39414c;background:#191d23}
+    .theme-ui .bar{height:9px;width:45%;background:currentColor;margin-bottom:18px}.theme-ui p{font-size:13px;color:var(--muted)}.dark .theme-ui p{color:#aab2be}
+    .theme-actions{display:flex;gap:8px;margin-top:22px}.btn{border:1px solid currentColor;border-radius:4px;padding:9px 13px;background:transparent;color:inherit;font-weight:650}.btn.primary{background:var(--ink);color:var(--surface);border-color:var(--ink)}.dark .btn.primary{background:#f5f7fa;color:#101318;border-color:#f5f7fa}.btn.accent{background:var(--mark);color:var(--ink);border-color:var(--mark)}.dark .btn.accent{background:#ffe05c;color:#101318;border-color:#ffe05c}
+    .contrast{width:100%;border-collapse:collapse;margin-top:32px;font-size:13px}.contrast th,.contrast td{text-align:left;border-top:1px solid var(--rule);padding:12px 8px}.contrast th{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.pass{color:var(--green);font-weight:700}
+    .type-hero{border:1px solid var(--ink);background:var(--surface);padding:clamp(28px,6vw,72px);overflow:hidden}
+    .type-display{margin:0;font-size:clamp(70px,13vw,176px);line-height:.78;letter-spacing:-.065em;font-weight:900;font-variation-settings:"MONO" 0,"CASL" 0,"CRSV" 0}
+    .type-word{display:block;color:var(--mark)}
+    .type-grid{display:grid;grid-template-columns:repeat(3,1fr);margin-top:20px;border:1px solid var(--rule)}
+    .type-sample{padding:28px;border-right:1px solid var(--rule);min-height:240px;background:var(--surface)}.type-sample:last-child{border:0}
+    .type-sample h3{font-size:28px;line-height:1.1}.type-sample p{color:var(--muted);font-size:14px}
+    .type-sample.mono,.type-sample code{font-family:var(--mono);font-variation-settings:"MONO" 1,"CASL" 0}.type-sample.linear{font-variation-settings:"MONO" 0,"CASL" 0}.type-sample .axes{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;color:var(--mark-strong)}
+    .scale{margin-top:32px}.scale-row{display:grid;grid-template-columns:100px 1fr 130px;align-items:baseline;gap:20px;padding:18px 0;border-top:1px solid var(--rule)}.scale-row .smeta{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;color:var(--muted)}
+    .layout-board{display:grid;grid-template-columns:1fr 320px;border:1px solid var(--ink);min-height:520px;background:var(--surface)}
+    .layout-work{padding:42px;position:relative;border-right:1px solid var(--rule)}
+    .layout-work h3{max-width:560px;font-size:clamp(34px,5vw,60px);line-height:1;letter-spacing:-.04em;margin:38px 0 24px}
+    .layout-work p{max-width:540px;color:var(--muted)}
+    .layout-demo{margin-top:48px;height:150px;border:1px solid var(--rule);display:grid;grid-template-columns:repeat(12,1fr);gap:8px;padding:8px}.layout-demo i{background:var(--surface-subtle)}
+    .layout-rail{padding:32px 24px}.note-item{position:relative;padding:20px 0 20px 42px;border-top:1px solid var(--rule)}.note-item:first-of-type{margin-top:40px}.note-item .pin{position:absolute;left:0;top:17px;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--mark);border:1px solid var(--ink);font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:11px;font-weight:750}.note-item b{font-size:14px}.note-item p{font-size:12px;color:var(--muted);margin:4px 0 0}
+    .component-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}.component{min-height:260px;background:var(--surface);border:1px solid var(--rule);padding:22px}.component h3{font-size:16px;margin-bottom:26px}.button-stack{display:flex;flex-direction:column;align-items:flex-start;gap:10px}.field{display:grid;gap:6px}.field span{font-size:12px;font-weight:650}.field input{width:100%;min-width:0;border:1px solid var(--rule);border-radius:4px;background:var(--surface);padding:10px 12px;font:inherit}.field input.focused{border-color:var(--blue);box-shadow:0 0 0 2px var(--surface),0 0 0 5px var(--blue)}
+    .statuses{display:flex;flex-wrap:wrap;gap:8px}.status{display:inline-flex;align-items:center;gap:6px;border:1px solid currentColor;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:650}.status:before{content:"";width:6px;height:6px;background:currentColor}.status.review{color:var(--mark-strong)}.status.done{color:var(--green)}.status.archived{color:var(--muted)}
+    .empty-state{text-align:left;border-top:2px solid var(--ink);padding-top:22px}.empty-state .empty-mark{width:46px;height:46px;border-top:3px solid var(--mark);border-left:3px solid var(--mark);margin-bottom:28px}.empty-state b{display:block;margin-bottom:7px}.empty-state p{font-size:13px;color:var(--muted)}
+    .review-wrap{background:var(--ink);padding:clamp(14px,2vw,28px)}
+    .review-app{min-height:620px;background:var(--surface);border:1px solid #000;display:grid;grid-template-columns:240px minmax(340px,1fr) 310px;grid-template-rows:64px 1fr;overflow:hidden}
+    .review-top{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid var(--rule)}
+    .review-logo{width:28px;height:28px;background:var(--ink);border-radius:4px;display:grid;place-items:center;color:var(--mark);font-weight:800}.review-top b{font-size:14px}.review-top code{margin-left:auto;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;color:var(--muted)}
+    .file-pane{border-right:1px solid var(--rule);padding:18px 12px}.pane-title{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;font-weight:650;letter-spacing:.08em;color:var(--muted);margin:0 8px 14px}.file-row{display:grid;grid-template-columns:22px 1fr auto;align-items:center;gap:8px;width:100%;border:0;border-left:3px solid transparent;border-radius:0;padding:10px 8px;background:transparent;text-align:left;color:var(--muted);font-size:11px}.file-row.active{background:var(--mark-soft);border-left-color:var(--mark);color:var(--ink)}.file-row .file-icon{font-family:var(--mono);font-variation-settings:"MONO" 1;display:grid;place-items:center;width:20px;height:22px;background:var(--surface-subtle);font-size:9px}.file-row small{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:9px}
+    .preview-pane{min-width:0;background:var(--surface-subtle);display:grid;grid-template-rows:58px 1fr}.preview-head{display:flex;align-items:center;gap:12px;padding:0 18px;background:var(--surface);border-bottom:1px solid var(--rule)}.preview-head b{font-size:13px}.preview-head code{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:9px;color:var(--muted)}.preview-head .mini-actions{margin-left:auto;display:flex;gap:6px}.preview-head .btn{font-size:10px;padding:6px 8px}
+    .preview-stage{display:grid;place-items:center;padding:28px;min-width:0}.mock-page{position:relative;width:min(100%,520px);height:380px;background:#fff;border:1px solid var(--rule);padding:34px;box-shadow:0 1px 0 rgb(21 24 29/8%),0 10px 28px rgb(21 24 29/8%)}.mock-page .micro{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:9px;color:var(--mark-strong)}.mock-page h3{font-size:32px;line-height:1;margin:12px 0 28px}.mock-line{height:9px;background:#e2e6ea;margin:12px 0}.mock-line.short{width:57%}.mock-total{display:flex;justify-content:space-between;border-top:1px solid #d7dce2;padding-top:20px;margin-top:30px;font-weight:750}.mock-pay{margin-top:26px;background:#15181d;color:#fff;border-radius:4px;padding:12px;text-align:center;font-size:12px}.selection{position:absolute;right:24px;top:154px;width:180px;height:94px;border:1px solid var(--ink)}.selection:before,.selection:after{content:"";position:absolute;width:26px;height:26px;border-color:var(--mark);border-style:solid}.selection:before{left:0;top:0;border-width:3px 0 0 3px}.selection:after{right:0;bottom:0;border-width:0 3px 3px 0}.annotation-pin{position:absolute;right:-10px;top:-10px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--mark);border:1px solid var(--ink);font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:11px;font-weight:750}
+    .feedback-pane{border-left:1px solid var(--rule);padding:18px 16px}.feedback-tabs{display:flex;border-bottom:1px solid var(--rule);margin-bottom:8px}.feedback-tabs span{padding:8px 10px;border-bottom:2px solid transparent;font-size:10px}.feedback-tabs .active{border-color:var(--mark);font-weight:700}.comment{position:relative;padding:18px 0 18px 40px;border-bottom:1px solid var(--rule)}.comment .pin{position:absolute;left:0;top:19px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--mark);border:1px solid var(--ink);font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px;font-weight:750}.comment header{display:flex;justify-content:space-between;gap:8px;font-size:11px}.comment time{font-family:var(--mono);font-variation-settings:"MONO" 1;color:var(--muted);font-size:8px}.comment p{font-size:12px;line-height:1.45;margin:8px 0}.comment footer{font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:9px;color:var(--mark-strong)}
+    .imagery{display:grid;grid-template-columns:1fr 1fr;gap:20px}.image-board{min-height:410px;border:1px solid var(--ink);padding:30px;background:var(--surface);position:relative;overflow:hidden}.image-board h3{font-size:24px}.diagram{margin-top:50px;display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr;align-items:center}.node{border:1px solid var(--ink);padding:18px 10px;text-align:center;font-size:12px}.arrow{text-align:center;color:var(--mark);font-family:var(--mono);font-variation-settings:"MONO" 1}.node code{display:block;margin-top:4px;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:9px;color:var(--muted)}
+    .icon-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:40px}.icon-tile{min-height:100px;display:grid;place-items:center;border:1px solid var(--rule)}.icon-tile svg{width:30px;height:30px;fill:none;stroke:var(--ink);stroke-width:1.75;stroke-linecap:square;stroke-linejoin:miter}
+    .motion-strip{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--ink)}.motion-cell{min-height:190px;padding:24px;border-right:1px solid var(--rule);position:relative}.motion-cell:last-child{border:0}.motion-cell b{display:block;margin-top:90px}.motion-cell small{font-family:var(--mono);font-variation-settings:"MONO" 1;color:var(--muted)}.motion-dot{position:absolute;left:24px;top:38px;width:28px;height:28px;border-radius:50%;background:var(--mark);animation:mark-in 2.4s cubic-bezier(.2,0,0,1) infinite}.motion-rule{position:absolute;left:24px;top:52px;width:110px;height:2px;background:var(--ink);transform-origin:left;animation:rule-in 2.4s cubic-bezier(.2,0,0,1) infinite}.motion-panel{position:absolute;left:24px;top:28px;width:100px;height:58px;border:1px solid var(--ink);animation:panel-in 2.4s cubic-bezier(.2,0,0,1) infinite}.motion-check{position:absolute;left:24px;top:34px;font-size:42px;color:var(--green);animation:check-in 2.4s cubic-bezier(.2,0,0,1) infinite}
+    @keyframes mark-in{0%,15%{opacity:0;transform:scale(.92)}25%,80%{opacity:1;transform:scale(1)}90%,100%{opacity:0}}
+    @keyframes rule-in{0%,15%{transform:scaleX(0)}30%,80%{transform:scaleX(1)}90%,100%{opacity:0}}
+    @keyframes panel-in{0%,15%{opacity:0;transform:translateX(16px)}30%,80%{opacity:1;transform:none}90%,100%{opacity:0}}
+    @keyframes check-in{0%,20%{opacity:0;transform:scale(.9)}30%,80%{opacity:1;transform:scale(1)}90%,100%{opacity:0}}
+    .rules{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--ink)}.rule-col{padding:clamp(28px,4vw,52px)}.rule-col.do{background:#e0f3e9}.rule-col.no{background:#ffe2de;border-left:1px solid var(--ink)}.rule-col h3{font-size:32px}.rule-col ul{padding:0;list-style:none;margin:30px 0 0}.rule-col li{position:relative;padding:12px 0 12px 34px;border-top:1px solid color-mix(in srgb,var(--ink) 20%,transparent)}.rule-col li:before{position:absolute;left:0;font-weight:850}.rule-col.do li:before{content:"✓";color:var(--green)}.rule-col.no li:before{content:"×";color:var(--red)}
+    .closing{padding:clamp(72px,11vw,150px) 0;background:var(--ink);color:var(--surface)}.closing-grid{display:grid;grid-template-columns:1.4fr .6fr;gap:60px;align-items:end}.closing h2{margin:0;font-size:clamp(50px,8vw,108px);line-height:.9;letter-spacing:-.055em;font-variation-settings:"CASL" 0;font-weight:880}.closing h2 span{color:#ffe05c}.closing p{color:#aab2be;font-size:17px}.closing .links{display:grid;gap:10px;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:12px}.closing a{color:#f5f7fa}
+    body>footer{background:var(--ink);color:#aab2be;border-top:1px solid #39414c;padding:22px 0;font-family:var(--mono);font-variation-settings:"MONO" 1;font-size:10px}.foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+    @media(max-width:1000px){
+      .principles{grid-template-columns:repeat(2,1fr)}.principle{border-bottom:1px solid var(--rule)}.principle:nth-child(2n){border-right:0}.principle:last-child{grid-column:1/-1}
+      .palette{grid-template-columns:repeat(3,1fr)}.swatch:nth-child(3n){border-right:0}.swatch:nth-child(-n+9){border-bottom:1px solid color-mix(in srgb,currentColor 24%,transparent)}
+      .review-app{grid-template-columns:200px minmax(320px,1fr);grid-template-rows:64px 1fr auto}.feedback-pane{grid-column:1/-1;border-left:0;border-top:1px solid var(--rule);display:grid;grid-template-columns:150px 1fr 1fr;gap:14px}.feedback-pane .pane-title,.feedback-tabs{align-self:start}.comment{border-bottom:0;border-left:1px solid var(--rule);padding-left:50px}
+      .component-strip{grid-template-columns:1fr 1fr}.motion-strip{grid-template-columns:1fr 1fr}.motion-cell:nth-child(2){border-right:0}.motion-cell:nth-child(-n+2){border-bottom:1px solid var(--rule)}
+    }
+    @media(max-width:760px){
+      .mast-inner{height:auto;min-height:62px;align-items:center;flex-wrap:wrap;padding:10px 0}.mast nav{order:3;width:100%;margin:0;padding-bottom:4px}.version{margin-left:auto}
+      .hero{padding-top:76px}.hero-grid,.idea-banner,.section-head,.logo-stage,.theme-grid,.type-grid,.layout-board,.imagery,.rules,.closing-grid{grid-template-columns:1fr}
+      .hero-note{max-width:520px}.section-head{gap:10px}.section-no{padding:0}.principles{grid-template-columns:1fr}.principle,.principle:nth-child(2n){border-right:0}.principle:last-child{grid-column:auto}
+      .logo-main{min-height:300px;border-right:0;border-bottom:1px solid var(--rule);padding:32px}.logo-uses{grid-template-columns:1fr 1fr}.palette{grid-template-columns:1fr 1fr}.swatch:nth-child(n){border-right:1px solid color-mix(in srgb,currentColor 24%,transparent);border-bottom:1px solid color-mix(in srgb,currentColor 24%,transparent)}.swatch:nth-child(2n){border-right:0}
+      .theme:first-child{border-bottom:1px solid var(--ink)}.type-sample{border-right:0;border-bottom:1px solid var(--rule)}.scale-row{grid-template-columns:70px 1fr}.scale-row .smeta:last-child{grid-column:2}
+      .layout-work{border-right:0;border-bottom:1px solid var(--rule);padding:28px}.layout-rail{padding:28px}.component-strip{grid-template-columns:1fr}
+      .review-wrap{overflow:visible;padding:8px}.review-app{min-width:0;min-height:0;grid-template-columns:1fr;grid-template-rows:auto}.review-top{grid-column:1;min-height:64px;height:auto;flex-wrap:wrap;padding:12px}.review-top code{width:100%;margin-left:42px}.file-pane{border-right:0;border-bottom:1px solid var(--rule)}.preview-pane{min-height:520px}.feedback-pane{grid-column:1;display:block;border-left:0;border-top:1px solid var(--rule)}.comment{border-left:0;border-bottom:1px solid var(--rule);padding-left:40px}
+      .motion-strip{grid-template-columns:1fr}.motion-cell{border-right:0;border-bottom:1px solid var(--rule)}.motion-cell:nth-child(2){border-bottom:1px solid var(--rule)}.motion-cell:last-child{border-bottom:0}
+      .rule-col.no{border-left:0;border-top:1px solid var(--ink)}
+    }
+    @media(max-width:480px){
+      h1{font-size:54px}.logo-uses,.palette{grid-template-columns:1fr}.swatch:nth-child(n){border-right:0}.meta-row{display:grid}.theme,.component,.image-board{padding:22px}.diagram{grid-template-columns:1fr}.arrow{padding:8px;transform:rotate(90deg)}.icon-grid{grid-template-columns:1fr 1fr}.closing h2{font-size:50px}
+    }
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.motion-dot,.motion-rule,.motion-panel,.motion-check{animation:none!important}}
+    @media print{.mast{position:static}.hero,.chapter{break-inside:avoid}.motion-dot,.motion-rule,.motion-panel,.motion-check{animation:none}.closing,footer{background:#fff;color:#000}.closing p{color:#333}}
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to guidelines</a>
+  <header class="mast">
+    <div class="shell mast-inner">
+      <a class="brand" href="#top" aria-label="Mockmark brand guidelines home">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M5 20V5h15M44 59h15V44" fill="none" stroke="#ffd84d" stroke-width="5"/><path d="M13 46V19l19 20 19-20v27" fill="none" stroke="#15181d" stroke-width="6"/><circle cx="32" cy="39" r="4.5" fill="#ffd84d"/></svg>
+        mockmark
+      </a>
+      <nav aria-label="Guideline sections"><a href="#idea">Idea</a><a href="#logo">Logo</a><a href="#color">Color</a><a href="#type">Type</a><a href="#layout">Layout</a><a href="#product">Product</a><a href="#imagery">Imagery</a><a href="#motion">Motion</a></nav>
+      <span class="version">Review Signal / 2.0</span>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="shell hero-grid">
+        <div>
+          <p class="kicker">Visual brand guidelines / 2026</p>
+          <h1>Feedback, held in context.</h1>
+          <p class="hero-lead">A precise visual language for marking live HTML mocks, discussing the work, and carrying human feedback into repository-aware agents.</p>
+          <div class="meta-row"><span>repo-scoped</span><span>human-first</span><span>agent-legible</span></div>
+        </div>
+        <aside class="hero-note" aria-label="Brand rationale">
+          <span class="ordinal">1</span>
+          <strong>Why Review Signal?</strong>
+          <p>Selection corners, numbered remarks, path labels, and a review rail come from shipped behavior. Cool surfaces and signal yellow avoid Claude-coded warmth.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="chapter" id="idea">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">01 / Idea</p><div class="section-title"><h2>Mark the work. Keep the context.</h2><p>Mockmark looks like a precise review instrument: direct enough for people, exact enough for repositories, restrained enough for long review sessions.</p></div></header>
+        <div class="principles">
+          <article class="principle"><span class="n">01</span><b>Mark the work</b><p>Accent belongs to selection, attention, and change—not decoration.</p></article>
+          <article class="principle"><span class="n">02</span><b>Show context</b><p>Page path, build, author, time, and status remain visible when useful.</p></article>
+          <article class="principle"><span class="n">03</span><b>Neutral + exact</b><p>White and cool gray surfaces meet rules, alignment, and explicit labels.</p></article>
+          <article class="principle"><span class="n">04</span><b>Human → agent</b><p>Conversation is proportional; paths, code, and tokens turn mono.</p></article>
+          <article class="principle"><span class="n">05</span><b>Restraint</b><p>Few radii, one mark color, quiet elevation, purposeful motion.</p></article>
+        </div>
+        <div class="idea-banner"><h3>Recognizable without a gradient—or even the logo.</h3><p>Cool canvas, white work surface, signal-yellow mark, open corners, ruled rail, numbered anchors, and proportional-to-mono type form the signature.</p></div>
+      </div>
+    </section>
+
+    <section class="chapter" id="logo">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">02 / Logo</p><div class="section-title"><h2>An M inside the act of marking.</h2><p>The continuous path is held by two selection corners. The anchor dot records the point where feedback becomes a conversation.</p></div></header>
+        <div class="logo-stage">
+          <div class="logo-main"><i class="corner tl"></i><i class="corner br"></i><img src="brand-assets/mockmark-lockup.svg" alt="Mockmark horizontal lockup"></div>
+          <div class="logo-meta">
+            <div><span class="label">Clear space</span><b>2× anchor dot</b><p>3× at left/right of horizontal lockup.</p></div>
+            <div><span class="label">Minimum</span><b>20px mark / 112px lockup</b><p>Use simplified favicon below 20px.</p></div>
+            <div><span class="label">Default</span><b>Top-left, grid aligned</b><p>Center only for splash or legal contexts.</p></div>
+          </div>
+        </div>
+        <div class="logo-uses">
+          <div class="logo-use"><img src="brand-assets/mockmark-mark.svg" alt="Full-color primary mark"><small>DO / white surface</small></div>
+          <div class="logo-use dark"><img src="brand-assets/mockmark-mark-monochrome.svg" alt="Monochrome mark on dark"><small>DO / monochrome</small></div>
+          <div class="logo-use mark-bg"><img src="brand-assets/mockmark-mark-monochrome.svg" alt="Ink mark on signal yellow"><small>DO / one-color contrast</small></div>
+          <div class="logo-use dont"><img src="brand-assets/mockmark-mark.svg" alt="Incorrect stretched mark" style="transform:scaleX(1.5)"><small>DON'T / stretch or distort</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="color">
+      <div class="wide">
+        <header class="section-head shell"><p class="section-no">03 / Color</p><div class="section-title"><h2>Cool surface, graphite, one deliberate signal.</h2><p>Signal yellow means review attention, never decorative wash. Graphite carries primary actions. Blue remains focus and information.</p></div></header>
+        <div class="palette" aria-label="Mockmark color palette">
+          <div class="swatch surface"><b>Surface</b><code>#FFFFFF<br>oklch(1 0 0)</code></div>
+          <div class="swatch canvas"><b>Canvas</b><code>#F2F4F6<br>oklch(.966 .003 247.86)</code></div>
+          <div class="swatch surface-subtle"><b>Surface subtle</b><code>#E6E9ED<br>oklch(.933 .006 255.48)</code></div>
+          <div class="swatch ink"><b>Ink</b><code>#15181D<br>oklch(.208 .011 260.67)</code></div>
+          <div class="swatch muted"><b>Muted</b><code>#5D6672<br>oklch(.507 .022 255.62)</code></div>
+          <div class="swatch mark"><b>Mark</b><code>#FFD84D<br>oklch(.892 .157 92.99)</code></div>
+          <div class="swatch markstrong"><b>Mark strong</b><code>#6B5200<br>oklch(.452 .092 88.21)</code></div>
+          <div class="swatch marksoft"><b>Mark soft</b><code>#FFF6CC<br>oklch(.970 .055 97.26)</code></div>
+          <div class="swatch blue"><b>Focus / info</b><code>#0A65FF<br>oklch(.562 .241 261.37)</code></div>
+          <div class="swatch green"><b>Success</b><code>#176B4A<br>oklch(.471 .095 161.75)</code></div>
+          <div class="swatch amber"><b>Warning</b><code>#8B5A00<br>oklch(.509 .109 72.67)</code></div>
+          <div class="swatch red"><b>Danger</b><code>#B42318<br>oklch(.500 .182 29.51)</code></div>
+        </div>
+        <div class="shell theme-grid">
+          <article class="theme"><span class="label">Light / default</span><h3>Review in daylight.</h3><div class="theme-ui"><div class="bar"></div><p>Cool canvas, white surface, graphite hierarchy, signal-yellow selection.</p><div class="theme-actions"><button class="btn primary">Primary</button><button class="btn accent">Comment</button></div></div></article>
+          <article class="theme dark"><span class="label">Dark / supported</span><h3>Review after hours.</h3><div class="theme-ui"><div class="bar"></div><p>Cool blue-black neutrals. Brighter mark and focus tokens.</p><div class="theme-actions"><button class="btn primary">Primary</button><button class="btn accent">Comment</button></div></div></article>
+        </div>
+        <div class="shell">
+          <table class="contrast"><thead><tr><th>Pair</th><th>Ratio</th><th>WCAG</th></tr></thead><tbody>
+            <tr><td>Ink / Surface</td><td>17.79:1</td><td class="pass">AAA</td></tr><tr><td>Muted / Canvas</td><td>5.28:1</td><td class="pass">AA</td></tr><tr><td>Ink / Mark</td><td>12.86:1</td><td class="pass">AAA</td></tr><tr><td>Blue / Surface</td><td>4.86:1</td><td class="pass">AA</td></tr><tr><td>Dark text / Dark canvas</td><td>17.34:1</td><td class="pass">AAA</td></tr><tr><td>Dark focus / Dark canvas</td><td>8.43:1</td><td class="pass">AAA</td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="type">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">04 / Type</p><div class="section-title"><h2>One family, two kinds of context.</h2><p>Recursive shifts from humanist proportional text to fixed-width repository detail. Same voice; exact change of purpose.</p></div></header>
+        <div class="type-hero"><p class="type-display">Human<span class="type-word">→ code</span></p></div>
+        <div class="type-grid">
+          <article class="type-sample linear"><span class="axes">MONO 0 / CASL 0 / WGHT 850</span><h3>Feedback lives beside the mock.</h3><p>Linear forms keep display language direct and non-editorial.</p></article>
+          <article class="type-sample"><span class="axes">MONO 0 / CASL 0 / WGHT 450</span><h3>Clear for long review.</h3><p>Linear proportional forms carry UI, body, headings, and documentation.</p></article>
+          <article class="type-sample mono"><span class="axes">MONO 1 / CASL 0 / WGHT 500</span><h3>checkout.html</h3><p>9fcd394 / in_review<br>npx mockmark comments</p></article>
+        </div>
+        <div class="scale">
+          <div class="scale-row"><span class="smeta">DISPLAY</span><strong style="font-size:clamp(42px,7vw,86px);line-height:.9;letter-spacing:-.045em">Review in context</strong><span class="smeta">64–120 / .94</span></div>
+          <div class="scale-row"><span class="smeta">H2</span><strong style="font-size:36px;line-height:1.08">Review without guessing</strong><span class="smeta">36 / 1.08</span></div>
+          <div class="scale-row"><span class="smeta">BODY</span><span style="font-size:16px;max-width:620px">A reviewer marks the live mock. The same conversation remains available to the team's existing agent.</span><span class="smeta">16 / 1.55</span></div>
+          <div class="scale-row"><span class="smeta">CODE</span><code style="font-family:var(--mono);font-variation-settings:'MONO' 1;font-size:13px">mocks/checkout.html · build 9fcd394</code><span class="smeta">13 / 1.60</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="layout">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">05 / Layout</p><div class="section-title"><h2>The work and its review rail.</h2><p>Twelve columns, an 8px rhythm, and a recurring work + rail composition. Rules group content before another card is introduced.</p></div></header>
+        <div class="layout-board">
+          <div class="layout-work"><span class="label">Work / 8 columns</span><h3>Give the mock room to remain the subject.</h3><p>Left edges and baselines carry hierarchy. Selected bounds receive open corners; ordinary content stays unframed.</p><div class="layout-demo" aria-label="Twelve column grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+          <aside class="layout-rail"><span class="label">Review rail / 4</span><article class="note-item"><span class="pin">1</span><b>Align the total</b><p>Specific note, exact location.</p></article><article class="note-item"><span class="pin">2</span><b>Copy pending</b><p>Status remains separate.</p></article><article class="note-item"><span class="pin">3</span><b>Ready after fix</b><p>Human decision stays visible.</p></article></aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="product">
+      <div class="wide">
+        <header class="section-head shell"><p class="section-no">06 / Product</p><div class="section-title"><h2>Dense where the work demands it.</h2><p>Navigation, controls, states, and comments use the same review-signal grammar without turning the dashboard into a marketing poster.</p></div></header>
+        <div class="shell component-strip">
+          <article class="component"><h3>Buttons</h3><div class="button-stack"><button class="btn primary">Create project</button><button class="btn accent">Post comment</button><button class="btn">Copy link</button><button class="btn" style="color:var(--red);border-color:var(--red)">Delete thread</button></div></article>
+          <article class="component"><h3>Inputs + focus</h3><label class="field"><span>Project name</span><input value="Checkout review" aria-label="Example project name"></label><label class="field" style="margin-top:18px"><span>Focused state</span><input class="focused" value="mocks/checkout.html" aria-label="Example focused path"></label></article>
+          <article class="component"><h3>States</h3><div class="statuses"><span class="status">Mocking</span><span class="status review">In review</span><span class="status done">Reviewed</span><span class="status archived">Archived</span></div><p style="font-size:12px;color:var(--muted);margin-top:28px">Lifecycle and thread resolution remain different concepts.</p></article>
+          <article class="component"><h3>Empty state</h3><div class="empty-state"><div class="empty-mark"></div><b>No mocks deployed</b><p>Deploy the repository mock directory to publish its HTML pages.</p><button class="btn">View deploy command</button></div></article>
+        </div>
+        <div class="review-wrap wide" style="margin-top:32px">
+          <div class="review-app" aria-label="Composite Mockmark product example">
+            <header class="review-top"><span class="review-logo">M</span><b>Checkout review</b><span class="status review">In review</span><code>build 9fcd394 / main</code></header>
+            <aside class="file-pane"><p class="pane-title">MOCKS / 03</p><button class="file-row active"><span class="file-icon">H</span><span>checkout.html</span><small>2</small></button><button class="file-row"><span class="file-icon">H</span><span>receipt.html</span><small>0</small></button><button class="file-row"><span class="file-icon">H</span><span>success.html</span><small>1</small></button></aside>
+            <main class="preview-pane"><header class="preview-head"><div><b>checkout.html</b><br><code>mocks/checkout.html</code></div><div class="mini-actions"><button class="btn">Copy link</button><button class="btn primary">Open ↗</button></div></header><div class="preview-stage"><div class="mock-page"><span class="micro">CHECKOUT / REVIEW</span><h3>Review order</h3><div class="mock-line"></div><div class="mock-line short"></div><div class="mock-line"></div><div class="mock-total"><span>Total</span><span>$124.00</span></div><div class="mock-pay">Continue to payment</div><div class="selection"><span class="annotation-pin">1</span></div></div></div></main>
+            <aside class="feedback-pane"><p class="pane-title">FEEDBACK / 02</p><div class="feedback-tabs"><span class="active">Open 2</span><span>Resolved 0</span></div><article class="comment"><span class="pin">1</span><header><b>Maya</b><time>17:20</time></header><p>Align the total with its label and keep the amount on one line.</p><footer>OPEN / 2 REPLIES</footer></article><article class="comment"><span class="pin" style="background:var(--ink);color:var(--surface)">2</span><header><b>Sudesh</b><time>17:34</time></header><p>Button copy needs a final content check.</p><footer>OPEN / 0 REPLIES</footer></article></aside>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="imagery">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">07 / Imagery</p><div class="section-title"><h2>Literal fragments, not abstract magic.</h2><p>Use browser frames, page paths, build labels, ruled diagrams, and open selection corners. Decoration must carry product meaning.</p></div></header>
+        <div class="imagery">
+          <article class="image-board"><span class="label">Diagram language</span><h3>Show the boundary.</h3><div class="diagram"><div class="node">Repository<code>./mocks</code></div><div class="arrow">→</div><div class="node">Mockmark<code>comment</code></div><div class="arrow">→</div><div class="node">Agent<code>reads feedback</code></div></div><p style="font-size:12px;color:var(--muted);margin-top:44px">Mockmark carries feedback. Agent action remains outside the service.</p></article>
+          <article class="image-board"><span class="label">Icon language</span><h3>Square, 1.75px, literal.</h3><div class="icon-grid">
+            <div class="icon-tile"><svg viewBox="0 0 32 32" aria-label="Annotation"><path d="M5 12V5h7M20 27h7v-7"/><circle cx="16" cy="16" r="4"/></svg></div>
+            <div class="icon-tile"><svg viewBox="0 0 32 32" aria-label="Comment"><path d="M5 6h22v15H14l-6 5v-5H5Z"/></svg></div>
+            <div class="icon-tile"><svg viewBox="0 0 32 32" aria-label="Repository"><path d="M7 5h8l3 4h7v18H7Z"/><path d="M10 14h12M10 18h8"/></svg></div>
+            <div class="icon-tile"><svg viewBox="0 0 32 32" aria-label="Resolved"><path d="M6 16l6 6L26 8"/></svg></div>
+          </div><p style="font-size:12px;color:var(--muted);margin-top:38px">No sparkles, robots, floating orbs, fake 3D, or decorative terminal syntax.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="chapter" id="motion">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">08 / Motion</p><div class="section-title"><h2>Explain state. Then stop.</h2><p>Motion reveals origin, continuity, or completion. Product transitions finish within 220ms; emphasis finishes within 360ms.</p></div></header>
+        <div class="motion-strip">
+          <article class="motion-cell"><span class="motion-dot"></span><b>Place mark</b><small>140ms / scale + fade</small></article>
+          <article class="motion-cell"><span class="motion-rule"></span><b>Draw relation</b><small>220ms / origin left</small></article>
+          <article class="motion-cell"><span class="motion-panel"></span><b>Open rail</b><small>220ms / 16px max</small></article>
+          <article class="motion-cell"><span class="motion-check">✓</span><b>Confirm state</b><small>360ms max / once</small></article>
+        </div>
+        <p style="margin:26px 0 0;color:var(--muted);font-size:13px">Reduced motion removes movement and preserves instant visible state. No endless orbit, shimmer, parallax, blob morph, bounce, or type-axis loop.</p>
+      </div>
+    </section>
+
+    <section class="chapter" id="rules">
+      <div class="shell">
+        <header class="section-head"><p class="section-no">09 / Rules</p><div class="section-title"><h2>Repeat the system, not a trend.</h2><p>A designer or engineer should know what to keep and what to reject without inventing a new visual language each time.</p></div></header>
+        <div class="rules">
+          <article class="rule-col do"><h3>Do</h3><ul><li>Frame selected work with open corners.</li><li>Use ink for primary actions and signal yellow for marks.</li><li>Put paths, builds, shortcuts, and code in mono.</li><li>Prefer rules and whitespace to nested cards.</li><li>Use realistic comments, paths, and statuses.</li><li>Pair status color with text and shape.</li></ul></article>
+          <article class="rule-col no"><h3>Don't</h3><ul><li>Use beige/cream foundations or coral/orange accents.</li><li>Use purple gradients, glows, blobs, or glass.</li><li>Center a fake prompt composer or default to bento cards.</li><li>Make every control or label a pill.</li><li>Depict agents with robots, wands, or sparkles.</li><li>Fabricate product features, claims, or screenshots.</li></ul></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing">
+      <div class="shell closing-grid"><h2>Human feedback.<br><span>Repository context.</span></h2><div><p>Review Signal gives Mockmark a visual identity that can scale from one annotation pin to a product dashboard, docs, launch page, or social crop.</p><div class="links"><a href="brand-guidelines.md">Canonical written specification →</a><a href="ai-slop-design-research.md">AI-aesthetic audit →</a><a href="brand-research.md">Research and comparison →</a><a href="brand-directions.md">Direction decision →</a><a href="brand-assets/tokens.css">CSS tokens →</a><a href="brand-assets/tokens.json">JSON tokens →</a></div></div></div>
+    </section>
+  </main>
+  <footer><div class="shell foot"><span>Mockmark Review Signal / 2.0 / 2026-08-22</span><span>Logo requires human legal + trademark approval before broad launch.</span></div></footer>
+</body>
+</html>

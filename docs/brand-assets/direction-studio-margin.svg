@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-labelledby="a b">
+  <title id="a">Direction C: Studio Margin</title><desc id="b">Editorial ivory layout with serif headings, oxblood notes, and generous margins.</desc>
+  <rect width="960" height="540" fill="#F3EBDD"/>
+  <rect x="28" y="28" width="904" height="484" fill="#FFFDF7" stroke="#2B2420"/>
+  <path d="M654 28V512" stroke="#C7B7A5"/>
+  <text x="64" y="82" font-family="Georgia,serif" font-size="15" font-weight="700" letter-spacing="2" fill="#7D2531">DIRECTION C</text>
+  <text x="64" y="147" font-family="Georgia,serif" font-size="57" font-weight="700" letter-spacing="-2" fill="#2B2420">Studio Margin</text>
+  <text x="64" y="184" font-family="Arial,sans-serif" font-size="17" fill="#6A5D54">A considered editorial review desk.</text>
+  <g transform="translate(64 228)">
+    <text x="0" y="0" font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#7D2531">CHECKOUT / REVIEW 04</text>
+    <text x="0" y="42" font-family="Georgia,serif" font-size="32" font-weight="700" fill="#2B2420">The payment summary</text>
+    <text x="0" y="76" font-family="Georgia,serif" font-size="15" fill="#6A5D54">Review hierarchy, copy, and alignment before approval.</text>
+    <rect x="0" y="103" width="540" height="116" fill="#F3EBDD"/>
+    <rect x="32" y="126" width="476" height="70" fill="#FFFDF7" stroke="#C7B7A5"/>
+    <text x="52" y="153" font-family="Arial,sans-serif" font-size="11" fill="#6A5D54">ORDER TOTAL</text><text x="390" y="177" font-family="Georgia,serif" font-size="25" font-weight="700" fill="#2B2420">$124.00</text>
+    <path d="M363 137H496V187H363" fill="none" stroke="#7D2531" stroke-width="2"/>
+  </g>
+  <g transform="translate(684 76)">
+    <text font-family="Arial,sans-serif" font-size="11" font-weight="700" letter-spacing="1.5" fill="#7D2531">MARGIN NOTES</text>
+    <text x="0" y="58" font-family="Georgia,serif" font-size="48" fill="#7D2531">01</text><text x="0" y="91" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#2B2420">Align the value</text><text x="0" y="114" font-family="Arial,sans-serif" font-size="12" fill="#6A5D54">Keep label and total</text><text x="0" y="132" font-family="Arial,sans-serif" font-size="12" fill="#6A5D54">on one reading line.</text>
+    <path d="M0 165H210" stroke="#C7B7A5"/>
+    <text x="0" y="214" font-family="Georgia,serif" font-size="48" fill="#7D2531">02</text><text x="0" y="247" font-family="Arial,sans-serif" font-size="13" font-weight="700" fill="#2B2420">Copy pending</text><text x="0" y="270" font-family="Arial,sans-serif" font-size="12" fill="#6A5D54">Owner: Maya</text>
+    <path d="M0 312H210" stroke="#C7B7A5"/>
+    <text x="0" y="348" font-family="monospace" font-size="11" fill="#6A5D54">9fcd394 · in_review</text>
+  </g>
+</svg>
