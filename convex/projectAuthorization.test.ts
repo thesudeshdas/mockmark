@@ -85,14 +85,15 @@ describe("project authorization", () => {
       ctx.db.insert("users", { name: "Reviewer", email: "reviewer@example.com" }),
     );
     const owner = t.withIdentity({ subject: ownerId });
-    await owner.mutation(api.projectAccess.invite, {
+    const invitationId = await owner.mutation(api.projectAccess.requestInvitation, {
       projectId: workProjectId,
       email: "reviewer@example.com",
       role: "viewer",
-      tokenHash: "invite-hash",
+      rawToken: "mmv_invite-hash",
     });
+    const invitation = await t.run((ctx) => ctx.db.get(invitationId));
     const invited = t.withIdentity({ subject: invitedId });
-    await invited.mutation(api.projectAccess.acceptInvitation, { tokenHash: "invite-hash" });
+    await invited.mutation(api.projectAccess.acceptInvitation, { tokenHash: invitation!.tokenHash });
 
     const projects = await invited.query(api.projects.list, { organizationId });
     expect(projects.map((project) => project._id)).toEqual([workProjectId]);
@@ -277,21 +278,22 @@ describe("project authorization", () => {
       ctx.db.insert("users", { name: "Wrong", email: "wrong@example.com" }),
     );
     const owner = t.withIdentity({ subject: ownerId });
-    const invitationId = await owner.mutation(api.projectAccess.invite, {
+    const invitationId = await owner.mutation(api.projectAccess.requestInvitation, {
       projectId: workProjectId,
       email: "right@example.com",
       role: "commenter",
-      tokenHash: "wrong-email-invite",
+      rawToken: "mmv_wrong-email-invite",
     });
+    const invitation = await t.run((ctx) => ctx.db.get(invitationId));
     await expect(
       t.withIdentity({ subject: wrongUserId }).mutation(api.projectAccess.acceptInvitation, {
-        tokenHash: "wrong-email-invite",
+        tokenHash: invitation!.tokenHash,
       }),
     ).rejects.toThrow(/invited email/i);
     await t.run((ctx) => ctx.db.patch(invitationId, { expiresAt: Date.now() - 1 }));
     await expect(
       t.withIdentity({ subject: wrongUserId }).mutation(api.projectAccess.acceptInvitation, {
-        tokenHash: "wrong-email-invite",
+        tokenHash: invitation!.tokenHash,
       }),
     ).rejects.toThrow(/invalid or expired/i);
   });
